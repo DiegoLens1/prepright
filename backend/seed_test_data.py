@@ -145,8 +145,12 @@ def seed_test_data():
 
     random.seed(42)
 
-    # Generate 5 weeks = 35 days of data
-    start_date = datetime(2025, 4, 7)  # A Monday
+    # Generate 5 weeks = 35 days of data (leading up to today)
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    # Start 5 weeks before today, aligned to a Monday
+    start_date = today - timedelta(days=35)
+    days_offset = start_date.weekday()  # shift to Monday
+    start_date = start_date - timedelta(days=days_offset)
     total_records = 0
     total_skipped = 0
 
