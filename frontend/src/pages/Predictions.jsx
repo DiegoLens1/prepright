@@ -157,7 +157,7 @@ export default function Predictions({ API }) {
           <button
             onClick={generate}
             disabled={generating}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-blue-600 text-sm font-medium disabled:opacity-50"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium disabled:opacity-50"
           >
             {generating ? "Generating..." : "Generate Predictions"}
           </button>
@@ -177,19 +177,19 @@ export default function Predictions({ API }) {
           <div className="flex items-center gap-2">
             <button
               onClick={goPrev}
-              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"
+              className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded text-sm font-medium hover:bg-gray-300"
             >
               ← Prev
             </button>
             <button
               onClick={goToday}
-              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"
+              className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded text-sm font-medium hover:bg-gray-300"
             >
               Today
             </button>
             <button
               onClick={goNext}
-              className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded text-sm font-medium hover:bg-gray-200"
+              className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded text-sm font-medium hover:bg-gray-300"
             >
               Next →
             </button>
@@ -246,7 +246,7 @@ export default function Predictions({ API }) {
                           style={{ minWidth: 60 }}
                         >
                           <div>{DAY_NAMES[i]}</div>
-                          <div className="text-xs font-normal text-gray-400">{fmtShort(day)}</div>
+                          <div className="text-xs font-normal text-gray-500">{fmtShort(day)}</div>
                         </th>
                       ))}
                     </tr>
@@ -265,7 +265,7 @@ export default function Predictions({ API }) {
                           const pred = predLookup[key];
                           if (!pred) {
                             return (
-                              <td key={i} className="text-center px-2 py-2 text-gray-300">
+                              <td key={i} className="text-center px-2 py-2 text-gray-400">
                                 —
                               </td>
                             );

@@ -138,7 +138,7 @@ export default function Templates({ API }) {
         </div>
         <button
           onClick={() => { setShowForm(true); setEditing(null); resetForm(); }}
-          className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
         >
           + New Template
         </button>
@@ -192,7 +192,7 @@ export default function Templates({ API }) {
                   placeholder="e.g., HEMA — will auto-match if this word appears in receipt"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
                 />
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-gray-500 mt-1">
                   Leave empty to skip auto-detection. The first active template will be used.
                 </p>
               </div>
@@ -320,14 +320,14 @@ export default function Templates({ API }) {
             <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
               <button
                 onClick={() => { setShowForm(false); setEditing(null); resetForm(); }}
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                className="px-4 py-2 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={!formData.name || !formData.line_pattern}
-                className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium disabled:opacity-50"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
               >
                 {editing ? "Update" : "Create"}
               </button>
@@ -358,7 +358,7 @@ export default function Templates({ API }) {
                 {t.description && (
                   <p className="text-sm text-gray-500 mb-2">{t.description}</p>
                 )}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-400">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-gray-500">
                   <div>
                     <span className="font-medium text-gray-500">Keyword:</span>{" "}
                     {t.source_keyword || "—"}

@@ -64,7 +64,7 @@ export default function Ingredients({ API }) {
         <h2 className="text-lg font-semibold">Ingredients</h2>
         <button
           onClick={openCreate}
-          className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
         >
           + Add Ingredient
         </button>
@@ -102,13 +102,13 @@ export default function Ingredients({ API }) {
           <div className="flex gap-2 mt-4">
             <button
               onClick={saveIngredient}
-              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
             >
               {editing ? "Save" : "Create"}
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200"
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300"
             >
               Cancel
             </button>
@@ -135,7 +135,7 @@ export default function Ingredients({ API }) {
                   <button
                     onClick={() => toggleActive(ing)}
                     className={`w-8 h-5 rounded-full text-xs font-medium transition-colors ${
-                      ing.active ? "bg-green-500 text-white" : "bg-gray-300 text-gray-500"
+                      ing.active ? "bg-green-500 text-white" : "bg-gray-200 text-gray-600"
                     }`}
                   >
                     {ing.active ? "ON" : "OFF"}
@@ -160,7 +160,7 @@ export default function Ingredients({ API }) {
           </tbody>
         </table>
         {ingredients.length === 0 && (
-          <p className="text-center text-gray-400 py-8">No ingredients yet.</p>
+          <p className="text-center text-gray-500 py-8">No ingredients yet.</p>
         )}
       </div>
     </div>

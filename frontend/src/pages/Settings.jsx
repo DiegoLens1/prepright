@@ -37,7 +37,7 @@ export default function SettingsPage({ API }) {
             <option value="cold">❄️ Cold</option>
             <option value="hot">🌞 Hot</option>
           </select>
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-gray-500 mt-2">
             This affects predictions per category weather sensitivity.
           </p>
         </div>
@@ -51,7 +51,7 @@ export default function SettingsPage({ API }) {
             value={settings.default_margin_pct || 20}
             onChange={(e) => update("default_margin_pct", e.target.value)}
           />
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-gray-500 mt-2">
             Used as default when creating new products.
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function SettingsPage({ API }) {
             value={settings.prediction_weeks || 4}
             onChange={(e) => update("prediction_weeks", e.target.value)}
           />
-          <p className="text-xs text-gray-400 mt-2">
+          <p className="text-xs text-gray-500 mt-2">
             How many weeks of history to use for predictions.
           </p>
         </div>

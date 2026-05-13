@@ -60,7 +60,7 @@ export default function Events({ API }) {
         <h2 className="text-lg font-semibold">Special Events</h2>
         <button
           onClick={openCreate}
-          className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
         >
           + Add Event
         </button>
@@ -102,7 +102,7 @@ export default function Events({ API }) {
                 value={impact}
                 onChange={(e) => setImpact(Number(e.target.value))}
               />
-              <div className="flex justify-between text-xs text-gray-400 mt-1">
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
                 <span>−50%</span>
                 <span>0%</span>
                 <span>+50%</span>
@@ -112,13 +112,13 @@ export default function Events({ API }) {
           <div className="flex gap-2 mt-4">
             <button
               onClick={saveEvent}
-              className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-blue-600"
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
             >
               {editing ? "Save" : "Create"}
             </button>
             <button
               onClick={() => setShowForm(false)}
-              className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200"
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-300"
             >
               Cancel
             </button>
