@@ -24,40 +24,7 @@ function fmtShort(d) {
   return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-function getMondayFromWeekYear(week, year) {
-  // ISO week date: week 1 = week containing Jan 4
-  const jan4 = new Date(year, 0, 4);
-  const dayOfWeek = jan4.getDay() || 7; // convert Sun=0 → 7
-  const mondayOfWeek1 = new Date(jan4);
-  mondayOfWeek1.setDate(jan4.getDate() - dayOfWeek + 1);
-  const target = new Date(mondayOfWeek1);
-  target.setDate(mondayOfWeek1.getDate() + (week - 1) * 7);
-  return target;
-}
 
-function getWeekNumber(d) {
-  // ISO week number: week containing Jan 4
-  const date = new Date(d);
-  date.setHours(12, 0, 0, 0); // noon avoids DST edge cases
-  const jan4 = new Date(date.getFullYear(), 0, 4);
-  jan4.setHours(12, 0, 0, 0);
-  const dayOfWeek = jan4.getDay() || 7;
-  const mondayOfWeek1 = new Date(jan4);
-  mondayOfWeek1.setDate(jan4.getDate() - dayOfWeek + 1);
-  const daysDiff = Math.floor((date - mondayOfWeek1) / (7 * 24 * 60 * 60 * 1000));
-  return Math.floor(daysDiff / 7) + 1;
-}
-
-function getWeekInfo(d) {
-  // Returns { week, year } using ISO standard
-  const date = new Date(d);
-  const year = date.getFullYear();
-  const week = getWeekNumber(date);
-  return { week, year };
-}
-
-const YEARS = Array.from({ length: 11 }, (_, i) => new Date().getFullYear() - 5 + i);
-const WEEKS = Array.from({ length: 53 }, (_, i) => i + 1);
 
 export default function Predictions({ API }) {
   const [predictions, setPredictions] = useState([]);
@@ -70,23 +37,6 @@ export default function Predictions({ API }) {
   const [currentMonday, setCurrentMonday] = useState(() =>
     getMonday(new Date())
   );
-
-  // Derive week/year from currentMonday
-  const { week: displayWeek, year: displayYear } = getWeekInfo(currentMonday);
-
-  const goPrev = () => setCurrentMonday(addDays(currentMonday, -7));
-  const goNext = () => setCurrentMonday(addDays(currentMonday, 7));
-  const goToday = () => setCurrentMonday(getMonday(new Date()));
-
-  const onWeekChange = (e) => {
-    const w = Number(e.target.value);
-    setCurrentMonday(getMondayFromWeekYear(w, displayYear));
-  };
-
-  const onYearChange = (e) => {
-    const y = Number(e.target.value);
-    setCurrentMonday(getMondayFromWeekYear(displayWeek, y));
-  };
 
   // Filter
   const [productFilter, setProductFilter] = useState("");
@@ -106,6 +56,10 @@ export default function Predictions({ API }) {
       setLoading(false);
     });
   }, [API]);
+
+  const goPrev = () => setCurrentMonday(addDays(currentMonday, -7));
+  const goNext = () => setCurrentMonday(addDays(currentMonday, 7));
+  const goToday = () => setCurrentMonday(getMonday(new Date()));
 
   // Week range
   const weekStart = currentMonday;
@@ -243,29 +197,12 @@ export default function Predictions({ API }) {
             </button>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-600">
-            <select
-              value={displayWeek}
-              onChange={onWeekChange}
+            <input
+              type="date"
+              value={fmt(currentMonday)}
+              onChange={(e) => setCurrentMonday(getMonday(new Date(e.target.value)))}
               className="border rounded px-2 py-1.5 text-sm"
-            >
-              {WEEKS.map((w) => (
-                <option key={w} value={w}>
-                  Week {w}
-                </option>
-              ))}
-            </select>
-            <span>of</span>
-            <select
-              value={displayYear}
-              onChange={onYearChange}
-              className="border rounded px-2 py-1.5 text-sm"
-            >
-              {YEARS.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
+            />
           </div>
           <div className="flex-1" />
           <div>
