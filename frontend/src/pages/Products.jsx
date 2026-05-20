@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function Products({ API }) {
   const [products, setProducts] = useState([]);
@@ -8,6 +9,8 @@ export default function Products({ API }) {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
+  const [confirmState, setConfirmState] = useState(null);
 
   // Form state
   const [name, setName] = useState("");
@@ -36,6 +39,7 @@ export default function Products({ API }) {
     setMarginPct(0);
     setAliasesStr("");
     setRecipesStr("");
+    setFormErrors({});
     setShowForm(true);
   };
 
@@ -50,12 +54,20 @@ export default function Products({ API }) {
         .map((r) => `${r.ingredient_name}:${r.quantity_per_unit}`)
         .join("\n")
     );
+    setFormErrors({});
     setShowForm(true);
   };
 
+  const validateForm = () => {
+    const errors = {};
+    if (!name.trim()) errors.name = "Product name is required.";
+    if (!categoryId) errors.category = "Please select a category.";
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const saveProduct = async () => {
-    if (!name.trim()) { alert("Product name is required."); return; }
-    if (!categoryId) { alert("Please select a category."); return; }
+    if (!validateForm()) return;
 
     const aliases = aliasesStr
       .split(",")
@@ -96,7 +108,7 @@ export default function Products({ API }) {
         const res = await axios.put(`${API}/products/${editing.id}`, data);
         setProducts((prev) => prev.map((p) => (p.id === res.data.id ? res.data : p)));
       } catch (err) {
-        alert(err.response?.data?.detail || "Failed to save product");
+        setFormErrors({ submit: err.response?.data?.detail || "Failed to save product" });
         return;
       }
     } else {
@@ -104,17 +116,26 @@ export default function Products({ API }) {
         const res = await axios.post(`${API}/products`, data);
         setProducts((prev) => [...prev, res.data]);
       } catch (err) {
-        alert(err.response?.data?.detail || "Failed to save product");
+        setFormErrors({ submit: err.response?.data?.detail || "Failed to save product" });
         return;
       }
     }
     setShowForm(false);
   };
 
-  const deleteProduct = async (id) => {
-    if (!confirm("Delete this product?")) return;
-    await axios.delete(`${API}/products/${id}`);
-    setProducts((prev) => prev.filter((p) => p.id !== id));
+  const deleteProduct = (id) => {
+    setConfirmState({ id, message: "Delete this product?" });
+  };
+
+  const confirmDelete = async (confirmed) => {
+    setConfirmState(null);
+    if (!confirmed) return;
+    try {
+      await axios.delete(`${API}/products/${confirmState.id}`);
+      setProducts((prev) => prev.filter((p) => p.id !== confirmState.id));
+    } catch (err) {
+      alert("Failed to delete product");
+    }
   };
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
@@ -135,20 +156,26 @@ export default function Products({ API }) {
       {showForm && (
         <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 no-print">
           <h3 className="font-medium mb-3">{editing ? "Edit" : "Add"} Product</h3>
+          {formErrors.submit && (
+            <div className="mb-3 bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+              {formErrors.submit}
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Name *</label>
               <input
-                className="w-full border rounded px-3 py-2 text-sm"
+                className={`w-full border rounded px-3 py-2 text-sm ${formErrors.name ? "border-red-500" : ""}`}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. Chocolate Croissant"
               />
+              {formErrors.name && <p className="text-xs text-red-600 mt-1">{formErrors.name}</p>}
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Category *</label>
               <select
-                className="w-full border rounded px-3 py-2 text-sm"
+                className={`w-full border rounded px-3 py-2 text-sm ${formErrors.category ? "border-red-500" : ""}`}
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
               >
@@ -159,6 +186,7 @@ export default function Products({ API }) {
                   </option>
                 ))}
               </select>
+              {formErrors.category && <p className="text-xs text-red-600 mt-1">{formErrors.category}</p>}
             </div>
             <div>
               <label className="block text-xs text-gray-500 mb-1">Margin %</label>
@@ -247,13 +275,13 @@ export default function Products({ API }) {
                 <td className="px-4 py-2 text-right no-print">
                   <button
                     onClick={() => openEdit(p)}
-                    className="text-primary hover:underline text-sm mr-3"
+                    className="text-blue-600 hover:underline text-sm mr-3"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => deleteProduct(p.id)}
-                    className="text-danger hover:underline text-sm"
+                    className="text-red-600 hover:underline text-sm"
                   >
                     Delete
                   </button>
@@ -266,6 +294,15 @@ export default function Products({ API }) {
           <p className="text-center text-gray-400 py-8">No products yet. Add your first product above.</p>
         )}
       </div>
+
+      {/* Confirmation modal */}
+      <ConfirmModal
+        isOpen={!!confirmState}
+        title="Confirm Delete"
+        message={confirmState?.message || "Are you sure?"}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function Categories({ API }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
 
   const [name, setName] = useState("");
   const [sensitivity, setSensitivity] = useState(1.0);
@@ -50,10 +52,15 @@ export default function Categories({ API }) {
     );
   };
 
-  const deleteCategory = async (id) => {
-    if (!confirm("Delete this category? Products in it will become inactive.")) return;
-    await axios.delete(`${API}/categories/${id}`);
-    setCategories((prev) => prev.filter((c) => c.id !== id));
+  const deleteCategory = (id) => {
+    setConfirmState({ id, message: "Delete this category? Products in it will become inactive." });
+  };
+
+  const confirmDelete = async (confirmed) => {
+    setConfirmState(null);
+    if (!confirmed) return;
+    await axios.delete(`${API}/categories/${confirmState.id}`);
+    setCategories((prev) => prev.filter((c) => c.id !== confirmState.id));
   };
 
   // Sensitivity explanation
@@ -170,13 +177,13 @@ export default function Categories({ API }) {
                 <td className="px-4 py-2 text-right no-print">
                   <button
                     onClick={() => openEdit(c)}
-                    className="text-primary hover:underline text-sm mr-3"
+                    className="text-blue-600 hover:underline text-sm mr-3"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => deleteCategory(c.id)}
-                    className="text-danger hover:underline text-sm"
+                    className="text-red-600 hover:underline text-sm"
                   >
                     Delete
                   </button>
@@ -189,6 +196,15 @@ export default function Categories({ API }) {
           <p className="text-center text-gray-400 py-8">No categories yet.</p>
         )}
       </div>
+
+      {/* Confirmation modal */}
+      <ConfirmModal
+        isOpen={!!confirmState}
+        title="Confirm Delete"
+        message={confirmState?.message || "Are you sure?"}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

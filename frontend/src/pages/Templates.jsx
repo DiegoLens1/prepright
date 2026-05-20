@@ -1,10 +1,14 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function Templates({ API }) {
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [confirmState, setConfirmState] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -22,10 +26,11 @@ export default function Templates({ API }) {
 
   const fetchTemplates = async () => {
     try {
-      const res = await fetch(`${API}/templates`);
-      const data = await res.json();
-      setTemplates(data);
+      setError(null);
+      const res = await axios.get(`${API}/templates`);
+      setTemplates(res.data);
     } catch (e) {
+      setError("Failed to load templates. Please check your connection.");
       console.error("Failed to fetch templates:", e);
     } finally {
       setLoading(false);
@@ -34,7 +39,7 @@ export default function Templates({ API }) {
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+  }, [API]);
 
   const handleSave = async () => {
     const payload = {
@@ -48,35 +53,31 @@ export default function Templates({ API }) {
 
     try {
       if (editing) {
-        const res = await fetch(`${API}/templates/${editing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) fetchTemplates();
+        await axios.put(`${API}/templates/${editing.id}`, payload);
       } else {
-        const res = await fetch(`${API}/templates`, {
-          method: "POST",
-          headers: { "Content-Type" : "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (res.ok) fetchTemplates();
+        await axios.post(`${API}/templates`, payload);
       }
+      fetchTemplates();
       setShowForm(false);
       setEditing(null);
       resetForm();
-    } catch (e) {
-      console.error("Failed to save template:", e);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to save template");
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Delete this template?")) return;
+  const handleDelete = (id) => {
+    setConfirmState({ id, message: "Delete this template?" });
+  };
+
+  const confirmDelete = async (confirmed) => {
+    setConfirmState(null);
+    if (!confirmed) return;
     try {
-      await fetch(`${API}/templates/${id}`, { method: "DELETE" });
+      await axios.delete(`${API}/templates/${confirmState.id}`);
       fetchTemplates();
     } catch (e) {
-      console.error("Failed to delete:", e);
+      alert("Failed to delete template");
     }
   };
 
@@ -117,18 +118,34 @@ export default function Templates({ API }) {
   };
 
   const toggleActive = async (t) => {
-    await fetch(`${API}/templates/${t.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ active: !t.active }),
-    });
-    fetchTemplates();
+    try {
+      await axios.put(`${API}/templates/${t.id}`, {
+        active: !t.active,
+      });
+      fetchTemplates();
+    } catch (e) {
+      alert("Failed to toggle template");
+    }
   };
 
   if (loading) return <div className="text-center py-12 text-gray-400">Loading...</div>;
 
   return (
     <div>
+      {/* Error banner */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
+          <span className="text-red-600 font-medium">⚠️</span>
+          <span className="text-sm text-red-700">{error}</span>
+          <button
+            onClick={() => { setError(null); fetchTemplates(); }}
+            className="ml-auto text-sm text-red-600 hover:text-red-800 font-medium"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Receipt Templates</h2>
@@ -164,7 +181,7 @@ export default function Templates({ API }) {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="e.g., HEMA, Cow Hills POS"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -176,7 +193,7 @@ export default function Templates({ API }) {
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     placeholder="e.g., HEMA thermal printer receipts"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -190,7 +207,7 @@ export default function Templates({ API }) {
                   value={formData.source_keyword}
                   onChange={(e) => setFormData({ ...formData, source_keyword: e.target.value })}
                   placeholder="e.g., HEMA — will auto-match if this word appears in receipt"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Leave empty to skip auto-detection. The first active template will be used.
@@ -206,7 +223,7 @@ export default function Templates({ API }) {
                   value={formData.line_pattern}
                   onChange={(e) => setFormData({ ...formData, line_pattern: e.target.value })}
                   placeholder='e.g., ^\\d{8}\\s+(.+?)\\s+(\\d+\\.\\d+)$'
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono text-sm"
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Regex pattern to match a product line. Use named groups: (?P&lt;name&gt;...), (?P&lt;qty&gt;...), (?P&lt;price&gt;...)
@@ -222,7 +239,7 @@ export default function Templates({ API }) {
                     type="text"
                     value={formData.product_name_group}
                     onChange={(e) => setFormData({ ...formData, product_name_group: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono text-sm"
                   />
                 </div>
                 <div>
@@ -233,7 +250,7 @@ export default function Templates({ API }) {
                     type="text"
                     value={formData.quantity_group}
                     onChange={(e) => setFormData({ ...formData, quantity_group: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono text-sm"
                   />
                 </div>
                 <div>
@@ -244,7 +261,7 @@ export default function Templates({ API }) {
                     type="text"
                     value={formData.price_group}
                     onChange={(e) => setFormData({ ...formData, price_group: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono text-sm"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono text-sm"
                   />
                 </div>
               </div>
@@ -259,7 +276,7 @@ export default function Templates({ API }) {
                     value={formData.line_prefix}
                     onChange={(e) => setFormData({ ...formData, line_prefix: e.target.value })}
                     placeholder="e.g., '  '"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
                 <div>
@@ -271,7 +288,7 @@ export default function Templates({ API }) {
                     value={formData.line_suffix}
                     onChange={(e) => setFormData({ ...formData, line_suffix: e.target.value })}
                     placeholder="e.g., '\\n'"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                   />
                 </div>
               </div>
@@ -285,7 +302,7 @@ export default function Templates({ API }) {
                   value={formData.name_normalize}
                   onChange={(e) => setFormData({ ...formData, name_normalize: e.target.value })}
                   placeholder='e.g., BD:Bak, klein:klein, normaal:normaal'
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
                 <p className="text-xs text-gray-400 mt-1">
                   Comma-separated replace rules: old:new,old2:new2. Applied after matching.
@@ -301,7 +318,7 @@ export default function Templates({ API }) {
                   onChange={(e) => setFormData({ ...formData, config: e.target.value })}
                   placeholder='e.g., {"product_code_length": 8}'
                   rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary font-mono text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono text-sm"
                 />
               </div>
 
@@ -311,7 +328,7 @@ export default function Templates({ API }) {
                     type="checkbox"
                     checked={formData.active}
                     onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
-                    className="w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <span className="text-sm text-gray-700">Active</span>
                 </label>
@@ -386,7 +403,7 @@ export default function Templates({ API }) {
                 </button>
                 <button
                   onClick={() => startEdit(t)}
-                  className="px-3 py-1.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-xs font-medium"
+                  className="px-3 py-1.5 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors text-xs font-medium"
                 >
                   Edit
                 </button>
@@ -428,6 +445,15 @@ Price Group: price`}</pre>
           The regex captures: <code>28102360</code> (code), <code>Koffie klein</code> (name), <code>2.59</code> (price)
         </p>
       </div>
+
+      {/* Confirmation modal */}
+      <ConfirmModal
+        isOpen={!!confirmState}
+        title="Confirm Delete"
+        message={confirmState?.message || "Are you sure?"}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

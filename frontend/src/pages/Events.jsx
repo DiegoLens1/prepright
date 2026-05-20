@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function Events({ API }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
 
   const [date, setDate] = useState("");
   const [name, setName] = useState("");
@@ -46,10 +48,15 @@ export default function Events({ API }) {
     setShowForm(false);
   };
 
-  const deleteEvent = async (id) => {
-    if (!confirm("Remove this event?")) return;
-    await axios.delete(`${API}/events/${id}`);
-    setEvents((prev) => prev.filter((e) => e.id !== id));
+  const deleteEvent = (id) => {
+    setConfirmState({ id, message: "Remove this event?" });
+  };
+
+  const confirmDelete = async (confirmed) => {
+    setConfirmState(null);
+    if (!confirmed) return;
+    await axios.delete(`${API}/events/${confirmState.id}`);
+    setEvents((prev) => prev.filter((e) => e.id !== confirmState.id));
   };
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
@@ -158,13 +165,13 @@ export default function Events({ API }) {
                 <td className="px-4 py-2 text-right no-print">
                   <button
                     onClick={() => openEdit(evt)}
-                    className="text-primary hover:underline text-sm mr-3"
+                    className="text-blue-600 hover:underline text-sm mr-3"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => deleteEvent(evt.id)}
-                    className="text-danger hover:underline text-sm"
+                    className="text-red-600 hover:underline text-sm"
                   >
                     Delete
                   </button>
@@ -177,6 +184,15 @@ export default function Events({ API }) {
           <p className="text-center text-gray-400 py-8">No events yet. Add special days that will impact sales.</p>
         )}
       </div>
+
+      {/* Confirmation modal */}
+      <ConfirmModal
+        isOpen={!!confirmState}
+        title="Confirm Delete"
+        message={confirmState?.message || "Are you sure?"}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

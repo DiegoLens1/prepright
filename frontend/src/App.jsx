@@ -23,17 +23,17 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-surface">
+    <div className="min-h-screen bg-[#f8f9fa]">
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 no-print">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-semibold text-primary">PrepRight</h1>
+          <h1 className="text-xl font-semibold text-blue-600">PrepRight</h1>
           <nav className="flex gap-1 h-16">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setPage(item.id)}
-                className={`px-3 py-1.5-md text-sm font-medium transition-colors border-b-2 ${
+                className={`px-3 py-1.5 text-sm font-medium transition-colors border-b-2 ${
                   page === item.id
                     ? "bg-primary text-gray-800 border-blue-500"
                     : "text-gray-600 hover:border-gray-300 border-transparent"

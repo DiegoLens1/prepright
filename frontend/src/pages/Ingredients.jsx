@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import ConfirmModal from "../components/ConfirmModal";
 
 export default function Ingredients({ API }) {
   const [ingredients, setIngredients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [confirmState, setConfirmState] = useState(null);
 
   const [name, setName] = useState("");
   const [unit, setUnit] = useState("units");
@@ -50,10 +52,15 @@ export default function Ingredients({ API }) {
     );
   };
 
-  const deleteIngredient = async (id) => {
-    if (!confirm("Delete this ingredient?")) return;
-    await axios.delete(`${API}/ingredients/${id}`);
-    setIngredients((prev) => prev.filter((i) => i.id !== id));
+  const deleteIngredient = (id) => {
+    setConfirmState({ id, message: "Delete this ingredient?" });
+  };
+
+  const confirmDelete = async (confirmed) => {
+    setConfirmState(null);
+    if (!confirmed) return;
+    await axios.delete(`${API}/ingredients/${confirmState.id}`);
+    setIngredients((prev) => prev.filter((i) => i.id !== confirmState.id));
   };
 
   if (loading) return <p className="text-gray-500">Loading...</p>;
@@ -144,13 +151,13 @@ export default function Ingredients({ API }) {
                 <td className="px-4 py-2 text-right no-print">
                   <button
                     onClick={() => openEdit(ing)}
-                    className="text-primary hover:underline text-sm mr-3"
+                    className="text-blue-600 hover:underline text-sm mr-3"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => deleteIngredient(ing.id)}
-                    className="text-danger hover:underline text-sm"
+                    className="text-red-600 hover:underline text-sm"
                   >
                     Delete
                   </button>
@@ -163,6 +170,15 @@ export default function Ingredients({ API }) {
           <p className="text-center text-gray-500 py-8">No ingredients yet.</p>
         )}
       </div>
+
+      {/* Confirmation modal */}
+      <ConfirmModal
+        isOpen={!!confirmState}
+        title="Confirm Delete"
+        message={confirmState?.message || "Are you sure?"}
+        confirmLabel="Delete"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

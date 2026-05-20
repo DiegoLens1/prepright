@@ -200,7 +200,10 @@ export default function Predictions({ API }) {
             <input
               type="date"
               value={fmt(currentMonday)}
-              onChange={(e) => setCurrentMonday(getMonday(new Date(e.target.value)))}
+              onChange={(e) => {
+                const [y, m, d] = e.target.value.split('-').map(Number);
+                setCurrentMonday(getMonday(new Date(y, m - 1, d)));
+              }}
               className="border rounded px-2 py-1.5 text-sm"
             />
           </div>
