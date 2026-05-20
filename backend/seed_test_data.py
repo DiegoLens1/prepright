@@ -24,19 +24,23 @@ def seed_test_data():
     models.Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
-    # Ensure categories exist
-    default_categories = [
-        {"name": "Baked Goods", "weather_sensitivity": 0.85},
-        {"name": "Beverages", "weather_sensitivity": 1.1},
-        {"name": "Dairy", "weather_sensitivity": 0.95},
-        {"name": "Fresh Prep", "weather_sensitivity": 0.8},
-        {"name": "Snacks", "weather_sensitivity": 1.0},
-        {"name": "Other", "weather_sensitivity": 1.0},
-    ]
-    for cat_data in default_categories:
-        if not db.query(models.Category).filter(models.Category.name == cat_data["name"]).first():
-            db.add(models.Category(**cat_data))
-    db.commit()
+    # Categories are seeded by seed.py; ensure they exist
+    existing_cats = {c.name: c for c in db.query(models.Category).all()}
+    if not existing_cats:
+        # Fallback: create default categories if seed.py wasn't run
+        default_categories = [
+            {"name": "Baked Goods", "weather_sensitivity": 0.85},
+            {"name": "Beverages", "weather_sensitivity": 1.1},
+            {"name": "Dairy", "weather_sensitivity": 0.95},
+            {"name": "Fresh Prep", "weather_sensitivity": 0.8},
+            {"name": "Snacks", "weather_sensitivity": 1.0},
+            {"name": "Other", "weather_sensitivity": 1.0},
+        ]
+        for cat_data in default_categories:
+            if cat_data["name"] not in existing_cats:
+                db.add(models.Category(**cat_data))
+        db.commit()
+        existing_cats = {c.name: c for c in db.query(models.Category).all()}
 
     # Ensure default products exist
     default_products = [
@@ -73,7 +77,7 @@ def seed_test_data():
         {"name": "Napkins", "category": "Other", "margin": 80},
     ]
 
-    cat_map = {c.name: c.id for c in db.query(models.Category).all()}
+    cat_map = {c.name: c.id for c in existing_cats.values()}
 
     products = []
     for p in default_products:

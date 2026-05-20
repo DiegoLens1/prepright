@@ -82,6 +82,8 @@ class ProductUpdate(BaseModel):
     category_id: Optional[int] = None
     margin_pct: Optional[float] = None
     active: Optional[bool] = None
+    aliases: Optional[List[ProductAliasCreate]] = None
+    recipes: Optional[List[RecipeCreate]] = None
 
 
 class ProductRead(BaseModel):
@@ -103,6 +105,12 @@ class EventCreate(BaseModel):
     date: str
     name: str
     impact_factor: float = 0.0
+
+
+class EventUpdate(BaseModel):
+    date: Optional[str] = None
+    name: Optional[str] = None
+    impact_factor: Optional[float] = None
 
 
 class EventRead(EventCreate):

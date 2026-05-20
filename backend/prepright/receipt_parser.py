@@ -108,10 +108,7 @@ class ReceiptParser:
                     best_keyword_len = len(t.source_keyword)
                     best_match = t
 
-        return self._from_db_model(best_match) if best_match else None
-
-    def _from_db_model(self, template: models.ReceiptTemplate) -> ReceiptTemplate:
-        return ReceiptTemplate.from_db(template)
+        return ReceiptTemplate.from_db(best_match) if best_match else None
 
     def parse_receipt(self, text: str, template_name: Optional[str] = None) -> ParseResult:
         """Parse a receipt using the specified or auto-detected template."""
@@ -123,7 +120,7 @@ class ReceiptParser:
                 models.ReceiptTemplate.active == True
             ).first()
             if db_template:
-                template = self._from_db_model(db_template)
+                template = ReceiptTemplate.from_db(db_template)
         else:
             template = self.detect_template(text)
 
@@ -184,15 +181,14 @@ class ReceiptParser:
 def match_products(parsed: ParseResult, db: Session) -> list[schemas.ProductMatch]:
     """Match parsed product names to database products via aliases/keywords."""
     matches = []
+    products = db.query(models.Product).filter(
+        models.Product.active == True
+    ).all()
 
     for line in parsed.lines:
         best_match = None
         best_score = 0
         confidence = "low"
-
-        products = db.query(models.Product).filter(
-            models.Product.active == True
-        ).all()
 
         name_lower = line.product_name.lower().strip()
 

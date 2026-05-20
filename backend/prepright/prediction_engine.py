@@ -1,7 +1,7 @@
 """Prediction engine for forecasting daily product demand."""
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from math import ceil
 from typing import List, Optional
 
@@ -157,7 +157,7 @@ def generate_predictions(
     Returns:
         List of prediction dicts ready to be stored
     """
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     tomorrow = today + timedelta(days=1)
 
     if start_date:
@@ -196,13 +196,37 @@ def generate_predictions(
     # Group sales by date
     daily_sales = _calculate_daily_sales(sales)
 
+    # Compute data_weeks once globally (not per-product)
+    data_weeks = 0
+    if daily_sales:
+        dates_in_history = set()
+        for date_str in daily_sales:
+            if date_str >= str(lookback_start):
+                try:
+                    d = datetime.strptime(date_str, "%Y-%m-%d").date()
+                    dates_in_history.add(d.isocalendar()[1])
+                except ValueError:
+                    pass
+        data_weeks = len(dates_in_history) if dates_in_history else 0
+
+    # Cache weather sensitivity per category to avoid per-product queries
+    cat_sensitivity: dict[int, float] = {}
+    for prod in products:
+        if prod.category_id not in cat_sensitivity:
+            cat = (
+                db.query(models.Category)
+                .filter(models.Category.id == prod.category_id)
+                .first()
+            )
+            cat_sensitivity[prod.category_id] = cat.weather_sensitivity if cat else 1.0
+
     predictions = []
     current = start
 
     while current <= end:
         for product in products:
             # Calculate base quantity
-            base_qty, data_weeks = _calculate_base_qty(
+            base_qty, _ = _calculate_base_qty(
                 daily_sales,
                 product.id,
                 product.category_id,
@@ -214,8 +238,8 @@ def generate_predictions(
             if base_qty == 0.0:
                 continue
 
-            # Apply weather adjustment (scaled by category sensitivity)
-            weather_adj = weather_adjustment * product.category.weather_sensitivity if product.category else 0.0
+            # Apply weather adjustment (scaled by category sensitivity, cached)
+            weather_adj = weather_adjustment * cat_sensitivity.get(product.category_id, 1.0)
             weather_adjusted = base_qty * (1 + weather_adj)
 
             # Apply event adjustment
@@ -225,7 +249,7 @@ def generate_predictions(
 
             # Apply day-of-week multiplier
             day_mult = _DAY_MULTIPLIERS.get(current.weekday(), 1.0)
-            predicted_qty = weather_adjusted * day_mult
+            predicted_qty = event_adjusted * day_mult
 
             predictions.append({
                 "date": date_str,

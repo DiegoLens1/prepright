@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
 from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone
 
 from prepright.database import Base
 
@@ -14,7 +14,7 @@ class Product(Base):
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=False)
     margin_pct = Column(Float, default=0.0)
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     category = relationship("Category")
     aliases = relationship("ProductAlias", back_populates="product", cascade="all, delete-orphan")
@@ -38,7 +38,7 @@ class Category(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     active = Column(Boolean, default=True)
     weather_sensitivity = Column(Float, default=1.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Ingredient(Base):
@@ -48,7 +48,7 @@ class Ingredient(Base):
     name = Column(String, unique=True, index=True, nullable=False)
     unit = Column(String, default="units")
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class Recipe(Base):
@@ -90,7 +90,7 @@ class Prediction(Base):
     weather_adjustment = Column(Float, default=0.0)
     event_adjustment = Column(Float, default=0.0)
     discount_adjustment = Column(Float, default=0.0)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     product = relationship("Product")
 
@@ -103,7 +103,7 @@ class ReceiptTemplate(Base):
     name = Column(String, unique=True, nullable=False)
     description = Column(Text, nullable=True)
     active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     source_keyword = Column(String, nullable=True)
     line_pattern = Column(Text, nullable=False)
@@ -126,6 +126,6 @@ class SalesRecord(Base):
     sale_date = Column(String, nullable=False)
     source_template = Column(String, nullable=True)
     confidence = Column(String, default="medium")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     product = relationship("Product")

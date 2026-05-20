@@ -10,7 +10,6 @@ from prepright.prediction_engine import (
     _calculate_daily_sales,
     _calculate_base_qty,
     _get_event_adjustment,
-    _determine_confidence,
     _DAY_MULTIPLIERS,
     _WEATHER_MAP,
 )
@@ -192,15 +191,15 @@ class TestCalculateBaseQty:
         )
         assert base == 0.0
 
-    def test_sunday_returns_zero(self):
-        """Sundays should return 0 (school closed)."""
+    def test_sunday_returns_nonzero(self):
+        """Sundays are treated like any other day for restaurants open 7 days."""
         daily_sales = {"2026-05-03": {1: 10.0}}  # Previous Sunday
         base, weeks = _calculate_base_qty(
             daily_sales, 1, 1,
             datetime(2026, 5, 10),  # Sunday
             4, _make_mock_db(categories=[_make_mock_category(1, "Baked Goods", 1.0)]),
         )
-        assert base == 0.0
+        assert base == 10.0  # Historical data contributes regardless of day
 
     def test_friday_returns_nonzero(self):
         """Fridays are school days, should return non-zero base."""
@@ -237,35 +236,14 @@ class TestGetEventAdjustment:
         assert result == 0.0
 
 
-# ── _determine_confidence tests ───────────────────────────────────────────────
-
-
-class TestDetermineConfidence:
-    def test_high_confidence(self):
-        assert _determine_confidence(4, 4) == "high"
-        assert _determine_confidence(3, 4) == "high"  # 75%
-
-    def test_medium_confidence(self):
-        assert _determine_confidence(2, 4) == "medium"  # 50%
-        assert _determine_confidence(2, 3) == "medium"  # 67%
-
-    def test_low_confidence(self):
-        assert _determine_confidence(0, 4) == "low"
-
-
 # ── _DAY_MULTIPLIERS tests ───────────────────────────────────────────────────
 
 
 class TestDayMultipiers:
-    def test_weekday_multiplier(self):
-        for day in range(5):  # Mon-Fri
+    def test_all_day_multipliers_are_one(self):
+        """All days have 1.0 multiplier since restaurants are open 7 days."""
+        for day in range(7):
             assert _DAY_MULTIPLIERS[day] == 1.0
-
-    def test_saturday_multiplier(self):
-        assert _DAY_MULTIPLIERS[5] == 0.3
-
-    def test_sunday_multiplier(self):
-        assert _DAY_MULTIPLIERS[6] == 0.0
 
 
 # ── generate_predictions integration tests ────────────────────────────────────

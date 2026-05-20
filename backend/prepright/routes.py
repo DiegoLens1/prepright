@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
 from prepright.database import get_db
@@ -39,7 +39,7 @@ def create_category(cat: schemas.CategoryCreate, db: Session = Depends(get_db)):
 
 @app.put("/api/categories/{category_id}", response_model=schemas.CategoryRead)
 def update_category(category_id: int, cat: schemas.CategoryUpdate, db: Session = Depends(get_db)):
-    db_cat = db.query(models.Category).filter(models.Category.id == category_id).first()
+    db_cat = db.query(models.Category).options(joinedload(models.Category.products)).filter(models.Category.id == category_id).first()
     if not db_cat:
         raise HTTPException(404, "Category not found")
     for k, v in cat.model_dump(exclude_unset=True).items():
@@ -101,11 +101,13 @@ def delete_ingredient(ingredient_id: int, db: Session = Depends(get_db)):
 
 @app.get("/api/products", response_model=List[schemas.ProductRead])
 def list_products(db: Session = Depends(get_db)):
-    products = db.query(models.Product).filter(models.Product.active == True).all()
-    result = []
-    for p in products:
-        result.append(_product_to_schema(p))
-    return result
+    products = (
+        db.query(models.Product)
+        .options(joinedload(models.Product.category), joinedload(models.Product.aliases), joinedload(models.Product.recipes))
+        .filter(models.Product.active == True)
+        .all()
+    )
+    return [_product_to_schema(p) for p in products]
 
 
 @app.post("/api/products", response_model=schemas.ProductRead, status_code=status.HTTP_201_CREATED)
@@ -211,11 +213,11 @@ def create_event(evt: schemas.EventCreate, db: Session = Depends(get_db)):
 
 
 @app.put("/api/events/{event_id}", response_model=schemas.EventRead)
-def update_event(event_id: int, evt: schemas.EventCreate, db: Session = Depends(get_db)):
+def update_event(event_id: int, evt: schemas.EventUpdate, db: Session = Depends(get_db)):
     db_evt = db.query(models.Event).filter(models.Event.id == event_id).first()
     if not db_evt:
         raise HTTPException(404, "Event not found")
-    for k, v in evt.model_dump().items():
+    for k, v in evt.model_dump(exclude_unset=True).items():
         setattr(db_evt, k, v)
     db.commit()
     db.refresh(db_evt)
@@ -349,6 +351,7 @@ def process_receipt(request: schemas.ReceiptProcessRequest, db: Session = Depend
         "parsed_line_count": parsed.parsed_line_count,
         "raw_line_count": parsed.raw_line_count,
         "matched_count": len(matches),
+        "total_unmatched": len(parsed.unmatched),
         "unmatched": parsed.unmatched[:20],  # Limit for response size
         "matches": [m.model_dump() for m in matches],
     }
@@ -466,6 +469,7 @@ def export_predictions_pdf(
 
     # Determine weeks from predictions
     all_dates = sorted(set(p["date"] for p in predictions))
+    all_dates_set = set(all_dates)
     weeks: list = []
     if all_dates:
         start = datetime.strptime(all_dates[0], "%Y-%m-%d")
@@ -477,7 +481,7 @@ def export_predictions_pdf(
             for d in range(7):
                 day = current + timedelta(days=d)
                 day_str = day.strftime("%Y-%m-%d")
-                if day_str in set(all_dates):
+                if day_str in all_dates_set:
                     week.append(day_str)
             if week:
                 weeks.append(week)
