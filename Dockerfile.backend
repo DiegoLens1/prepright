@@ -1,0 +1,27 @@
+FROM python:3.11-slim
+
+# Install curl for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app/backend
+
+# Install Python deps
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy source
+COPY backend/prepright ./prepright
+COPY backend/seed.py seed.py
+
+# Persist SQLite database
+VOLUME ["/app/backend/data"]
+
+EXPOSE 8000
+
+# Copy startup script
+COPY backend/startup.sh /startup.sh
+RUN chmod +x /startup.sh
+
+CMD ["/startup.sh"]

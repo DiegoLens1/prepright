@@ -1,16 +1,68 @@
 #!/bin/bash
 # Deploy PrepRight on Raspberry Pi
-# Run: bash deploy.sh  (no sudo needed!)
+# Usage:
+#   bash deploy.sh          # traditional (systemd + nginx)
+#   bash deploy.sh docker   # Docker Compose (simpler)
 # Works on a fresh Raspberry Pi OS (Bookworm or Bullseye)
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CURRENT_USER="$(whoami)"
+DEPLOY_MODE="${1:-traditional}"
 
 echo "=== PrepRight Deploy Script ==="
+echo "Mode: $DEPLOY_MODE"
 
-# ── 0. Ensure project directory is owned by current user ────────
+# ── Docker deployment ─────────────────────────────────────────────
+if [ "$DEPLOY_MODE" = "docker" ]; then
+    echo ""
+    echo "[0/4] Checking Docker..."
+    if ! command -v docker &> /dev/null; then
+        echo "  Installing Docker..."
+        curl -fsSL https://get.docker.com | sh
+        sudo usermod -aG docker $CURRENT_USER
+        echo "  NOTE: Log out and back in (or reboot) for docker group to take effect."
+    fi
+
+    if ! command -v compose &> /dev/null && ! docker compose version &> /dev/null; then
+        echo "  Installing Docker Compose..."
+        sudo apt-get install -y docker-compose-plugin
+    fi
+
+    echo "[1/4] Installing system prerequisites..."
+    sudo apt-get update
+    sudo apt-get install -y build-essential libffi-dev libssl-dev curl git
+
+    echo "  Adding '$CURRENT_USER' to dialout group (serial port)..."
+    sudo usermod -aG dialout $CURRENT_USER
+
+    echo "[2/4] Building images..."
+    cd "$SCRIPT_DIR"
+    docker compose build
+
+    echo "[3/4] Seeding database..."
+    docker compose run --rm backend python seed.py
+    docker compose run --rm backend python seed_templates.py
+
+    echo "[4/4] Starting services..."
+    docker compose up -d
+
+    echo ""
+    echo "Backend API:    http://<pi-ip>:8000"
+    echo "API docs:       http://<pi-ip>:8000/docs"
+    echo "Dashboard:      http://<pi-ip>"
+    echo ""
+    echo "Commands:"
+    echo "  docker compose logs -f backend"
+    echo "  docker compose logs -f serial"
+    echo "  docker compose down"
+    echo "  docker compose up -d   (restart)"
+    echo ""
+    exit 0
+fi
+
+# ── Traditional deployment ────────────────────────────────────────
 echo "[0/7] Fixing file ownership..."
 sudo chown -R $CURRENT_USER:$CURRENT_USER "$SCRIPT_DIR"
 
