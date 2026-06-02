@@ -15,6 +15,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/prepright ./prepright
 COPY backend/seed.py seed.py
 COPY backend/seed_templates.py seed_templates.py
+COPY backend/seed_test_data.py seed_test_data.py
 
 # Persist SQLite database
 VOLUME ["/app/backend/data"]
