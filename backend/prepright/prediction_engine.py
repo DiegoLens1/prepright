@@ -220,13 +220,16 @@ def generate_predictions(
             )
             cat_sensitivity[prod.category_id] = cat.weather_sensitivity if cat else 1.0
 
+    # Minimum weeks of data required before we trust predictions
+    MIN_DATA_WEEKS = 2
+
     predictions = []
     current = start
 
     while current <= end:
         for product in products:
-            # Calculate base quantity
-            base_qty, _ = _calculate_base_qty(
+            # Calculate base quantity and track how many weeks of data exist
+            base_qty, data_weeks = _calculate_base_qty(
                 daily_sales,
                 product.id,
                 product.category_id,
@@ -234,6 +237,10 @@ def generate_predictions(
                 lookback_weeks,
                 db,
             )
+
+            # Skip predictions if not enough historical data to be meaningful
+            if data_weeks < MIN_DATA_WEEKS:
+                continue
 
             if base_qty == 0.0:
                 continue

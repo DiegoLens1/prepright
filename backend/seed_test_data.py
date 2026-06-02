@@ -24,57 +24,99 @@ def seed_test_data():
     models.Base.metadata.create_all(bind=engine)
     db = SessionLocal()
 
-    # Categories are seeded by seed.py; ensure they exist
-    existing_cats = {c.name: c for c in db.query(models.Category).all()}
-    if not existing_cats:
-        # Fallback: create default categories if seed.py wasn't run
-        default_categories = [
-            {"name": "Baked Goods", "weather_sensitivity": 0.85},
-            {"name": "Beverages", "weather_sensitivity": 1.1},
-            {"name": "Dairy", "weather_sensitivity": 0.95},
-            {"name": "Fresh Prep", "weather_sensitivity": 0.8},
-            {"name": "Snacks", "weather_sensitivity": 1.0},
-            {"name": "Other", "weather_sensitivity": 1.0},
-        ]
-        for cat_data in default_categories:
-            if cat_data["name"] not in existing_cats:
-                db.add(models.Category(**cat_data))
-        db.commit()
-        existing_cats = {c.name: c for c in db.query(models.Category).all()}
+    # Create categories matching the actual menu
+    category_defs = [
+        {"name": "Ontbijt", "weather_sensitivity": 0.85},
+        {"name": "Lunch broodjes", "weather_sensitivity": 0.9},
+        {"name": "Warme broodjes", "weather_sensitivity": 0.95},
+        {"name": "Warme snacks", "weather_sensitivity": 0.75},
+        {"name": "IJs", "weather_sensitivity": 1.3},
+        {"name": "Warme dranken", "weather_sensitivity": 1.2},
+        {"name": "Koude dranken", "weather_sensitivity": 1.1},
+        {"name": "Hotdogs & Rookworsten", "weather_sensitivity": 0.8},
+    ]
 
-    # Ensure default products exist
+    existing_cats = {c.name: c for c in db.query(models.Category).all()}
+    for cat_data in category_defs:
+        if cat_data["name"] not in existing_cats:
+            db.add(models.Category(**cat_data))
+    db.commit()
+    existing_cats = {c.name: c for c in db.query(models.Category).all()}
+
+    # Products grouped by category
     default_products = [
-        # Baked Goods (cat 1)
-        {"name": "Croissant", "category": "Baked Goods", "margin": 65},
-        {"name": "Baguette", "category": "Baked Goods", "margin": 60},
-        {"name": "Muffin", "category": "Baked Goods", "margin": 70},
-        {"name": "Sourdough Loaf", "category": "Baked Goods", "margin": 55},
-        {"name": "Cinnamon Roll", "category": "Baked Goods", "margin": 68},
-        # Beverages (cat 2)
-        {"name": "Coffee (Large)", "category": "Beverages", "margin": 75},
-        {"name": "Coffee (Small)", "category": "Beverages", "margin": 72},
-        {"name": "Hot Chocolate", "category": "Beverages", "margin": 65},
-        {"name": "Orange Juice", "category": "Beverages", "margin": 50},
-        {"name": "Iced Tea", "category": "Beverages", "margin": 60},
-        # Dairy (cat 3)
-        {"name": "Milk (1L)", "category": "Dairy", "margin": 30},
-        {"name": "Yogurt", "category": "Dairy", "margin": 45},
-        {"name": "Cheese Slice", "category": "Dairy", "margin": 40},
-        {"name": "Butter", "category": "Dairy", "margin": 35},
-        # Fresh Prep (cat 4)
-        {"name": "Sandwich", "category": "Fresh Prep", "margin": 50},
-        {"name": "Salad Bowl", "category": "Fresh Prep", "margin": 55},
-        {"name": "Soup (Ladle)", "category": "Fresh Prep", "margin": 58},
-        {"name": "Pasta Dish", "category": "Fresh Prep", "margin": 45},
-        # Snacks (cat 5)
-        {"name": "Chips", "category": "Snacks", "margin": 55},
-        {"name": "Cookie", "category": "Snacks", "margin": 65},
-        {"name": "Granola Bar", "category": "Snacks", "margin": 50},
-        {"name": "Brownie", "category": "Snacks", "margin": 62},
-        {"name": "Pretzel", "category": "Snacks", "margin": 58},
-        # Other (cat 6)
-        {"name": "Water Bottle", "category": "Other", "margin": 40},
-        {"name": "Napkins", "category": "Other", "margin": 80},
+        # Ontbijt
+        {"name": "Klein ontbijt", "category": "Ontbijt", "margin": 60},
+        {"name": "Middel ontbijt", "category": "Ontbijt", "margin": 62},
+        {"name": "Groot ontbijt wit", "category": "Ontbijt", "margin": 65},
+        {"name": "Groot ontbijt bruin", "category": "Ontbijt", "margin": 65},
+        # Lunch broodjes
+        {"name": "Bagel roomkaas & zalm", "category": "Lunch broodjes", "margin": 55},
+        {"name": "Hemaatje wit met roomkaas", "category": "Lunch broodjes", "margin": 58},
+        {"name": "Hemaatje bruin met roomkaas", "category": "Lunch broodjes", "margin": 58},
+        {"name": "Hemaatje wit mozzarella & tomaat", "category": "Lunch broodjes", "margin": 55},
+        {"name": "Hemaatje bruin mozzarella & tomaat", "category": "Lunch broodjes", "margin": 55},
+        {"name": "Hemaatje wit tonijnsalade", "category": "Lunch broodjes", "margin": 56},
+        {"name": "Hemaatje bruin tonijnsalade", "category": "Lunch broodjes", "margin": 56},
+        {"name": "Hemaatje wit pulled chicken", "category": "Lunch broodjes", "margin": 54},
+        {"name": "Hemaatje bruin pulled chicken", "category": "Lunch broodjes", "margin": 54},
+        {"name": "Bomvol broodje wit gezond", "category": "Lunch broodjes", "margin": 52},
+        {"name": "Bomvol broodje bruin gezond", "category": "Lunch broodjes", "margin": 52},
+        {"name": "Bomvol broodje wit kip", "category": "Lunch broodjes", "margin": 50},
+        {"name": "Bomvol broodje bruin kip", "category": "Lunch broodjes", "margin": 50},
+        {"name": "Bomvol broodje wit grillworst", "category": "Lunch broodjes", "margin": 48},
+        {"name": "Bomvol broodje bruin grillworst", "category": "Lunch broodjes", "margin": 48},
+        # Warme broodjes
+        {"name": "Ciabatta pittige kip", "category": "Warme broodjes", "margin": 53},
+        {"name": "Ciabatta tuna melt", "category": "Warme broodjes", "margin": 52},
+        {"name": "Croque monsieur", "category": "Warme broodjes", "margin": 55},
+        {"name": "Tosti ham-kaas", "category": "Warme broodjes", "margin": 58},
+        {"name": "Glutenvrije tosti ham-kaas", "category": "Warme broodjes", "margin": 58},
+        {"name": "Tosti pulled chicken", "category": "Warme broodjes", "margin": 54},
+        # Warme snacks
+        {"name": "Kaasstengel", "category": "Warme snacks", "margin": 65},
+        {"name": "Ovenkroket", "category": "Warme snacks", "margin": 68},
+        {"name": "Broodje ovenkroket", "category": "Warme snacks", "margin": 60},
+        {"name": "Kippensoep", "category": "Warme snacks", "margin": 62},
+        {"name": "Feta-spinaziebroodje", "category": "Warme snacks", "margin": 56},
+        # IJs
+        {"name": "Softijs klein", "category": "IJs", "margin": 72},
+        {"name": "Softijs groot", "category": "IJs", "margin": 70},
+        {"name": "Softijs bakje", "category": "IJs", "margin": 70},
+        {"name": "Schepijs hoorn", "category": "IJs", "margin": 75},
+        {"name": "Schepijs bakje klein", "category": "IJs", "margin": 73},
+        {"name": "Schepijs bakje middel", "category": "IJs", "margin": 72},
+        {"name": "Schepijs bakje groot", "category": "IJs", "margin": 70},
+        {"name": "Slush standaard", "category": "IJs", "margin": 78},
+        {"name": "Slush Blue Citrus", "category": "IJs", "margin": 78},
+        {"name": "Slush Mango", "category": "IJs", "margin": 78},
+        {"name": "Slush Groene appel", "category": "IJs", "margin": 78},
+        {"name": "Slush Watermeloen", "category": "IJs", "margin": 78},
+        # Warme dranken
+        {"name": "Koffie", "category": "Warme dranken", "margin": 75},
+        {"name": "Cappuccino klein", "category": "Warme dranken", "margin": 72},
+        {"name": "Cappuccino groot", "category": "Warme dranken", "margin": 70},
+        {"name": "Latte machiato", "category": "Warme dranken", "margin": 71},
+        {"name": "Koffie verkeerd", "category": "Warme dranken", "margin": 73},
+        {"name": "Espresso", "category": "Warme dranken", "margin": 78},
+        {"name": "Espresso dubbel", "category": "Warme dranken", "margin": 76},
+        {"name": "Chai latte", "category": "Warme dranken", "margin": 68},
+        {"name": "Thee", "category": "Warme dranken", "margin": 80},
+        {"name": "Verse muntthee", "category": "Warme dranken", "margin": 78},
+        # Koude dranken
+        {"name": "IJskoffie pistache", "category": "Koude dranken", "margin": 68},
+        {"name": "IJskoffie met slagroom", "category": "Koude dranken", "margin": 67},
+        {"name": "IJskoffie stroopwafel-karamel", "category": "Koude dranken", "margin": 67},
+        {"name": "Sappen", "category": "Koude dranken", "margin": 60},
+        {"name": "Smoothies", "category": "Koude dranken", "margin": 62},
+        {"name": "Frisdrank", "category": "Koude dranken", "margin": 65},
+        # Hotdogs & Rookworsten
+        {"name": "Hotdog kip", "category": "Hotdogs & Rookworsten", "margin": 58},
+        {"name": "Hotdog varken", "category": "Hotdogs & Rookworsten", "margin": 56},
+        {"name": "Halve rookworst", "category": "Hotdogs & Rookworsten", "margin": 60},
+        {"name": "Halve rookworst brood", "category": "Hotdogs & Rookworsten", "margin": 55},
+        {"name": "Bomvol broodje wit warme rookworst", "category": "Hotdogs & Rookworsten", "margin": 52},
+        {"name": "Bomvol broodje bruin warme rookworst", "category": "Hotdogs & Rookworsten", "margin": 52},
     ]
 
     cat_map = {c.name: c.id for c in existing_cats.values()}
@@ -101,33 +143,80 @@ def seed_test_data():
     # Day-of-week multipliers (school context: weekdays=1.0, Sat=0.3, Sun=0.0)
     day_multipliers = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 0.3, 6: 0.0}
 
-    # Base daily demand per product (realistic school quantities)
+    # Base daily demand per product (realistic quantities for a Dutch breakfast/lunch spot)
     base_demand = {
-        "Croissant": 15,
-        "Baguette": 8,
-        "Muffin": 12,
-        "Sourdough Loaf": 5,
-        "Cinnamon Roll": 10,
-        "Coffee (Large)": 25,
-        "Coffee (Small)": 15,
-        "Hot Chocolate": 8,
-        "Orange Juice": 10,
-        "Iced Tea": 7,
-        "Milk (1L)": 6,
-        "Yogurt": 8,
-        "Cheese Slice": 5,
-        "Butter": 3,
-        "Sandwich": 18,
-        "Salad Bowl": 7,
-        "Soup (Ladle)": 12,
-        "Pasta Dish": 6,
-        "Chips": 10,
-        "Cookie": 12,
-        "Granola Bar": 6,
-        "Brownie": 8,
-        "Pretzel": 5,
-        "Water Bottle": 10,
-        "Napkins": 3,
+        # Ontbijt
+        "Klein ontbijt": 8,
+        "Middel ontbijt": 12,
+        "Groot ontbijt wit": 6,
+        "Groot ontbijt bruin": 6,
+        # Lunch broodjes
+        "Bagel roomkaas & zalm": 5,
+        "Hemaatje wit met roomkaas": 10,
+        "Hemaatje bruin met roomkaas": 10,
+        "Hemaatje wit mozzarella & tomaat": 8,
+        "Hemaatje bruin mozzarella & tomaat": 8,
+        "Hemaatje wit tonijnsalade": 7,
+        "Hemaatje bruin tonijnsalade": 7,
+        "Hemaatje wit pulled chicken": 6,
+        "Hemaatje bruin pulled chicken": 6,
+        "Bomvol broodje wit gezond": 5,
+        "Bomvol broodje bruin gezond": 5,
+        "Bomvol broodje wit kip": 7,
+        "Bomvol broodje bruin kip": 7,
+        "Bomvol broodje wit grillworst": 6,
+        "Bomvol broodje bruin grillworst": 6,
+        # Warme broodjes
+        "Ciabatta pittige kip": 6,
+        "Ciabatta tuna melt": 5,
+        "Croque monsieur": 8,
+        "Tosti ham-kaas": 10,
+        "Glutenvrije tosti ham-kaas": 3,
+        "Tosti pulled chicken": 5,
+        # Warme snacks
+        "Kaasstengel": 12,
+        "Ovenkroket": 10,
+        "Broodje ovenkroket": 6,
+        "Kippensoep": 8,
+        "Feta-spinaziebroodje": 5,
+        # IJs
+        "Softijs klein": 10,
+        "Softijs groot": 8,
+        "Softijs bakje": 6,
+        "Schepijs hoorn": 7,
+        "Schepijs bakje klein": 4,
+        "Schepijs bakje middel": 5,
+        "Schepijs bakje groot": 4,
+        "Slush standaard": 5,
+        "Slush Blue Citrus": 4,
+        "Slush Mango": 4,
+        "Slush Groene appel": 3,
+        "Slush Watermeloen": 4,
+        # Warme dranken
+        "Koffie": 35,
+        "Cappuccino klein": 12,
+        "Cappuccino groot": 10,
+        "Latte machiato": 8,
+        "Koffie verkeerd": 10,
+        "Espresso": 15,
+        "Espresso dubbel": 8,
+        "Chai latte": 6,
+        "Thee": 14,
+        "Verse muntthee": 5,
+        # Koude dranken
+        "IJskoffie pistache": 5,
+        "IJskoffie met slagroom": 4,
+        "IJskoffie stroopwafel-karamel": 4,
+        "Sappen": 10,
+        "Smoothies": 6,
+        "Frisdrank": 12,
+        # Hotdogs & Rookworsten
+        "Hotdog kip": 6,
+        "Hotdog varken": 8,
+        "Halve rookworst": 5,
+        "Halve rookworst brood": 6,
+        "Bomvol broodje wit warme rookworst": 5,
+        "Bomvol broodje bruin warme rookworst": 5,
     }
 
     # Weather patterns for 5 weeks (simulate changing weather)

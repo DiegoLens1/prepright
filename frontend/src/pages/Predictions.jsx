@@ -241,10 +241,19 @@ export default function Predictions({ API }) {
                 <h3 className="font-semibold text-gray-800">{catName}</h3>
               </div>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+                  <colgroup>
+                    <col style={{ width: "200px", minWidth: "200px" }} />
+                    {weekDates.map((_, i) => (
+                      <col key={i} style={{ width: "60px", minWidth: "60px" }} />
+                    ))}
+                  </colgroup>
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-gray-100 z-10" style={{ minWidth: 140 }}>
+                      <th
+                        className="text-left px-3 py-2 font-medium text-gray-600 sticky left-0 bg-gray-100 z-10"
+                        style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                      >
                         Product
                       </th>
                       {weekDates.map((day, i) => (
@@ -253,7 +262,7 @@ export default function Predictions({ API }) {
                           className={`text-center px-2 py-2 font-medium ${
                             i >= 5 ? "text-red-400" : "text-gray-600"
                           }`}
-                          style={{ minWidth: 60 }}
+                          style={{ overflow: "hidden", textOverflow: "ellipsis" }}
                         >
                           <div>{DAY_NAMES[i]}</div>
                           <div className="text-xs font-normal text-gray-500">{fmtShort(day)}</div>
@@ -266,7 +275,8 @@ export default function Predictions({ API }) {
                       <tr key={prod.id} className="border-b border-gray-100 hover:bg-gray-50">
                         <td
                           className="px-3 py-2 font-medium sticky left-0 bg-white z-10"
-                          style={{ minWidth: 140 }}
+                          style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                          title={prod.name}
                         >
                           {prod.name}
                         </td>

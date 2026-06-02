@@ -13,12 +13,14 @@ def seed_db():
 
     # Default categories with weather sensitivity
     default_categories = [
-        {"name": "Baked Goods", "weather_sensitivity": 0.85},
-        {"name": "Beverages", "weather_sensitivity": 1.1},
-        {"name": "Dairy", "weather_sensitivity": 0.95},
-        {"name": "Fresh Prep", "weather_sensitivity": 0.8},
-        {"name": "Snacks", "weather_sensitivity": 1.0},
-        {"name": "Other", "weather_sensitivity": 1.0},
+        {"name": "Ontbijt", "weather_sensitivity": 0.85},
+        {"name": "Lunch broodjes", "weather_sensitivity": 0.9},
+        {"name": "Warme broodjes", "weather_sensitivity": 0.95},
+        {"name": "Warme snacks", "weather_sensitivity": 0.75},
+        {"name": "IJs", "weather_sensitivity": 1.3},
+        {"name": "Warme dranken", "weather_sensitivity": 1.2},
+        {"name": "Koude dranken", "weather_sensitivity": 1.1},
+        {"name": "Hotdogs & Rookworsten", "weather_sensitivity": 0.8},
     ]
 
     for cat_data in default_categories:
