@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Dashboard from "./pages/Dashboard";
+import PrintOrders from "./pages/PrintOrders";
 import Categories from "./pages/Categories";
 import Products from "./pages/Products";
 import Ingredients from "./pages/Ingredients";
@@ -10,9 +12,11 @@ import Predictions from "./pages/Predictions";
 const API = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 export default function App() {
-  const [page, setPage] = useState("products");
+  const [page, setPage] = useState("dashboard");
 
   const navItems = [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "print-orders", label: "Print Orders" },
     { id: "products", label: "Products" },
     { id: "categories", label: "Categories" },
     { id: "ingredients", label: "Ingredients" },
@@ -48,6 +52,8 @@ export default function App() {
 
       {/* Main content */}
       <main className="max-w-6xl mx-auto p-4">
+        {page === "dashboard" && <Dashboard API={API} setPage={setPage} />}
+        {page === "print-orders" && <PrintOrders API={API} />}
         {page === "products" && <Products API={API} />}
         {page === "categories" && <Categories API={API} />}
         {page === "ingredients" && <Ingredients API={API} />}
