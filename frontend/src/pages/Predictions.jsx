@@ -66,6 +66,24 @@ export default function Predictions({ API }) {
   const weekEnd = addDays(currentMonday, 6);
   const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  // Sales data
+  const [sales, setSales] = useState([]);
+  const [salesLoading, setSalesLoading] = useState(true);
+
+  useEffect(() => {
+    setSalesLoading(true);
+    axios
+      .get(`${API}/predictions/sales-records`, {
+        params: {
+          start_date: fmt(weekStart),
+          end_date: fmt(weekEnd),
+        },
+      })
+      .then((res) => setSales(res.data))
+      .catch(() => setSales([]))
+      .finally(() => setSalesLoading(false));
+  }, [currentMonday, API]);
+
   const generate = async () => {
     setGenerating(true);
     try {
@@ -305,6 +323,98 @@ export default function Predictions({ API }) {
           ))}
         </div>
       )}
+
+      {/* Sales data table */}
+      <div className="mt-8">
+        <h3 className="text-lg font-semibold text-gray-800 mb-3">
+          Actual Sales — Week of {fmtShort(weekStart)}
+        </h3>
+        {salesLoading ? (
+          <p className="text-sm text-gray-400">Loading sales data...</p>
+        ) : sales.length === 0 ? (
+          <p className="text-sm text-gray-400 bg-white border border-gray-200 rounded-lg p-4">
+            No recorded sales for this week yet.
+          </p>
+        ) : (
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm" style={{ tableLayout: "fixed" }}>
+                <colgroup>
+                  <col style={{ width: "200px", minWidth: "200px" }} />
+                  {weekDates.map((_, i) => (
+                    <col key={i} style={{ width: "60px", minWidth: "60px" }} />
+                  ))}
+                </colgroup>
+                <thead>
+                  <tr className="bg-emerald-50">
+                    <th
+                      className="text-left px-3 py-2 font-medium text-emerald-700 sticky left-0 bg-emerald-50 z-10"
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                    >
+                      Product
+                    </th>
+                    {weekDates.map((day, i) => (
+                      <th
+                        key={i}
+                        className={`text-center px-2 py-2 font-medium text-emerald-700 ${
+                          i >= 5 ? "text-red-400" : ""
+                        }`}
+                        style={{ overflow: "hidden", textOverflow: "ellipsis" }}
+                      >
+                        <div>{DAY_NAMES[i]}</div>
+                        <div className="text-xs font-normal text-emerald-500">{fmtShort(day)}</div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {products
+                    .filter((prod) => {
+                      if (!productFilter) return true;
+                      return prod.id === Number(productFilter);
+                    })
+                    .map((prod) => {
+                      // Build lookup for this product's sales this week
+                      const prodSales = {};
+                      sales.forEach((s) => {
+                        if (s.product_id === prod.id) {
+                          prodSales[s.sale_date] = (prodSales[s.sale_date] || 0) + s.quantity;
+                        }
+                      });
+                      const hasSales = weekDates.some((d) => prodSales[fmt(d)] > 0);
+                      if (!hasSales) return null;
+
+                      return (
+                        <tr key={prod.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td
+                            className="px-3 py-2 font-medium sticky left-0 bg-white z-10"
+                            style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                            title={prod.name}
+                          >
+                            {prod.name}
+                          </td>
+                          {weekDates.map((day, i) => {
+                            const qty = prodSales[fmt(day)] || 0;
+                            return (
+                              <td key={i} className="text-center px-2 py-2">
+                                {qty > 0 ? (
+                                  <div className="font-mono font-semibold text-emerald-700">{qty}</div>
+                                ) : (
+                                  <span className="text-gray-300">—</span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })
+                    .filter(Boolean)}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Summary */}
       <div className="mt-6 text-sm text-gray-500">

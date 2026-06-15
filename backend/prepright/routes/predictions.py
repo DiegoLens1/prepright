@@ -79,6 +79,38 @@ def list_predictions(
     return result
 
 
+@router.get("/sales-records")
+def get_sales_records(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    product_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """Fetch actual sales records with optional filters."""
+    query = db.query(models.SalesRecord)
+
+    if start_date:
+        query = query.filter(models.SalesRecord.sale_date >= start_date)
+    if end_date:
+        query = query.filter(models.SalesRecord.sale_date <= end_date)
+    if product_id:
+        query = query.filter(models.SalesRecord.product_id == product_id)
+
+    records = query.order_by(models.SalesRecord.sale_date, models.SalesRecord.product_id).all()
+
+    result = []
+    for r in records:
+        result.append({
+            "id": r.id,
+            "sale_date": r.sale_date,
+            "product_id": r.product_id,
+            "product_name": r.product.name if r.product else None,
+            "quantity": r.quantity,
+            "confidence": r.confidence,
+        })
+    return result
+
+
 @router.get("/export/pdf")
 def export_predictions_pdf(
     start_date: Optional[str] = None,
