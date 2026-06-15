@@ -183,6 +183,82 @@ def esc_pos_to_lines(data: bytes) -> list[str]:
     return lines
 
 
+# ── Printing helpers (reverse direction: text → ESC/POS → USB) ──────
+
+
+def text_to_escpos(
+    text: str,
+    bold: bool = False,
+    width: int = 48,
+    line_height: int = 32,
+) -> bytes:
+    """Convert plain text to ESC/POS byte stream.
+
+    Args:
+        text: Plain text to convert.
+        bold: Whether to use bold font.
+        width: Character column width (default 48 = 80mm).
+        line_height: Line feed height in dots (default 32).
+
+    Returns:
+        ESC/POS byte sequence ready to send to printer.
+    """
+    cmd = b""
+
+    # Initialize printer
+    cmd += b"\x1B\x40"
+
+    # Set line height
+    cmd += b"\x1B\x33" + bytes([line_height])
+
+    if bold:
+        cmd += b"\x1B\x45\x01"  # Bold on
+
+    for line in text.split("\n"):
+        # Pad line to full width
+        padded = line.ljust(width)
+        cmd += padded.encode("cp437", errors="ignore") + b"\x0A"
+
+    if bold:
+        cmd += b"\x1B\x45\x00"  # Bold off
+
+    # Feed paper (3 lines) then cut
+    cmd += b"\x1B\x64\x03"
+    cmd += b"\x1D\x56\x01"  # Partial cut
+
+    return cmd
+
+
+def print_to_usb_printer(
+    text: str,
+    port: str = "/dev/usb/lp0",
+    bold: bool = False,
+) -> str:
+    """Send plain text to a USB thermal printer via ESC/POS.
+
+    Args:
+        text: Plain text receipt content.
+        port: USB device path (default /dev/usb/lp0).
+        bold: Use bold font for the receipt.
+
+    Returns:
+        "ok" on success, or error message string.
+    """
+    try:
+        escpos_bytes = text_to_escpos(text, bold=bold)
+        with open(port, "wb") as f:
+            f.write(escpos_bytes)
+        return "ok"
+    except FileNotFoundError:
+        return f"Printer device not found: {port}"
+    except PermissionError:
+        return f"Permission denied writing to {port}. Add user to dialout group or run with sudo."
+    except OSError as e:
+        return f"IO error writing to printer: {e}"
+    except Exception as e:
+        return f"Unexpected error: {e}"
+
+
 # ── Test with mock ESC/POS payload ──────────────────────────────────────
 
 if __name__ == "__main__":

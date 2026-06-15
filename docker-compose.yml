@@ -7,6 +7,9 @@ services:
       - db-data:/app/backend/data
     ports:
       - "8000:8000"
+    devices:
+      # USB thermal printer — adjust path if yours differs
+      - /dev/usb/lp0:/dev/usb/lp0
     environment:
       - DATABASE_URL=sqlite:////app/backend/data/prepright.db
     restart: unless-stopped
