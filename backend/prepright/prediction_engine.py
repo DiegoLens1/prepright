@@ -74,8 +74,6 @@ def _calculate_base_qty(
     """Calculate base predicted quantity for a product on a target date."""
     target_day_of_week = target_date.weekday()
 
-    # Restaurants open 7 days — no weekend skip
-
     # Get the category's weather sensitivity
     category = (
         db.query(models.Category)
@@ -84,9 +82,8 @@ def _calculate_base_qty(
     )
     weather_sensitivity = category.weather_sensitivity if category else 1.0
 
-    # Collect historical data from same day-of-week and all days
+    # Collect only same day-of-week history
     same_day_history = []
-    all_history = []
 
     cutoff_date = target_date - timedelta(weeks=lookback_weeks)
 
@@ -97,36 +94,17 @@ def _calculate_base_qty(
             continue
 
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-        all_history.append(product_sales[product_id])
-
-        # Weight: same day-of-week gets 2x weight
         if date_obj.weekday() == target_day_of_week:
             same_day_history.append(product_sales[product_id])
 
-    # Base quantity: weighted average
+    # Base quantity: average of same day-of-week only
     base = 0.0
-    data_weeks = 0
-
-    if all_history:
-        # Simple average across all historical data
-        base = sum(all_history) / len(all_history)
-        # Calculate how many weeks of data we have
-        dates_in_history = set()
-        for date_str in daily_sales:
-            if date_str >= str(cutoff_date):
-                try:
-                    d = datetime.strptime(date_str, "%Y-%m-%d").date()
-                    dates_in_history.add(d.isocalendar()[1])  # ISO week number
-                except ValueError:
-                    pass
-        data_weeks = len(dates_in_history) if dates_in_history else 0
+    data_days = len(same_day_history)
 
     if same_day_history:
-        # Blend same-day-of-week average (40% weight) with overall average (60% weight)
-        day_avg = sum(same_day_history) / len(same_day_history)
-        base = base * 0.6 + day_avg * 0.4
+        base = sum(same_day_history) / len(same_day_history)
 
-    return base, data_weeks
+    return base, data_days
 
 
 def _get_event_adjustment(target_date: datetime, events: List[models.Event]) -> float:
@@ -196,19 +174,6 @@ def generate_predictions(
     # Group sales by date
     daily_sales = _calculate_daily_sales(sales)
 
-    # Compute data_weeks once globally (not per-product)
-    data_weeks = 0
-    if daily_sales:
-        dates_in_history = set()
-        for date_str in daily_sales:
-            if date_str >= str(lookback_start):
-                try:
-                    d = datetime.strptime(date_str, "%Y-%m-%d").date()
-                    dates_in_history.add(d.isocalendar()[1])
-                except ValueError:
-                    pass
-        data_weeks = len(dates_in_history) if dates_in_history else 0
-
     # Cache weather sensitivity per category to avoid per-product queries
     cat_sensitivity: dict[int, float] = {}
     for prod in products:
@@ -220,16 +185,16 @@ def generate_predictions(
             )
             cat_sensitivity[prod.category_id] = cat.weather_sensitivity if cat else 1.0
 
-    # Minimum weeks of data required before we trust predictions
-    MIN_DATA_WEEKS = 2
+    # Minimum same-day-of-week data points required before we trust predictions
+    MIN_DATA_DAYS = 2
 
     predictions = []
     current = start
 
     while current <= end:
         for product in products:
-            # Calculate base quantity and track how many weeks of data exist
-            base_qty, data_weeks = _calculate_base_qty(
+            # Calculate base quantity and count matching historical days
+            base_qty, data_days = _calculate_base_qty(
                 daily_sales,
                 product.id,
                 product.category_id,
@@ -238,8 +203,8 @@ def generate_predictions(
                 db,
             )
 
-            # Skip predictions if not enough historical data to be meaningful
-            if data_weeks < MIN_DATA_WEEKS:
+            # Skip predictions if not enough same-day historical data
+            if data_days < MIN_DATA_DAYS:
                 continue
 
             if base_qty == 0.0:
