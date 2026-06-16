@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
+from pydantic import BaseModel
+from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 
 from prepright.database import get_db
@@ -9,14 +11,19 @@ from prepright.prediction_engine import generate_predictions
 router = APIRouter(prefix="/api/predictions", tags=["predictions"])
 
 
+class GenerateRequest(BaseModel):
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 @router.post("/generate")
 def generate_predictions_endpoint(
-    request: dict = {},
+    request: GenerateRequest = GenerateRequest(),
     db: Session = Depends(get_db),
 ):
     """Generate predictions for a date range."""
-    start_date = request.get("start_date")
-    end_date = request.get("end_date")
+    start_date = request.start_date
+    end_date = request.end_date
 
     new_predictions = generate_predictions(db, start_date, end_date)
 
@@ -52,7 +59,7 @@ def list_predictions(
     db: Session = Depends(get_db),
 ):
     """Fetch predictions with optional filters."""
-    query = db.query(models.Prediction)
+    query = db.query(models.Prediction).options(joinedload(models.Prediction.product))
 
     if start_date:
         query = query.filter(models.Prediction.date >= start_date)
@@ -131,7 +138,7 @@ def export_predictions_pdf(
     predictions = list_predictions(start_date, end_date, None, db)
 
     if not predictions:
-        return {"error": "No predictions to export"}
+        raise HTTPException(404, "No predictions to export")
 
     # Build lookup: (date, product_id) -> prediction
     pred_map: dict = {}
@@ -247,8 +254,9 @@ def export_predictions_pdf(
     doc.build(elements)
     buffer.seek(0)
 
-    return {
-        "pdf_base64": buffer.read().hex(),
-        "filename": f"predictions_{start_date or 'all'}_to_{end_date or 'all'}.pdf",
-        "total_predictions": len(predictions),
-    }
+    filename = f"predictions_{start_date or 'all'}_to_{end_date or 'all'}.pdf"
+    return Response(
+        content=buffer.read(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -8,6 +8,8 @@ mkdir -p /app/backend/data
 cd /app/backend
 export DATABASE_URL="sqlite:////app/backend/data/prepright.db"
 python seed.py
+# Seed default receipt-parsing templates (idempotent; receipt parsing needs these)
+python seed_templates.py
 
 # Start backend
 cd /app/backend/data

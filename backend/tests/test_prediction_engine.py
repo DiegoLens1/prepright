@@ -10,7 +10,6 @@ from prepright.prediction_engine import (
     _calculate_daily_sales,
     _calculate_base_qty,
     _get_event_adjustment,
-    _DAY_MULTIPLIERS,
     _WEATHER_MAP,
 )
 from prepright import models
@@ -187,9 +186,9 @@ class TestCalculateBaseQty:
     def test_no_history(self):
         daily_sales = {}
         base, weeks = _calculate_base_qty(
-            daily_sales, 1, 1,
+            daily_sales, 1,
             datetime(2026, 5, 10),  # Sunday
-            4, _make_mock_db(categories=[_make_mock_category(1, "Baked Goods", 1.0)]),
+            4,
         )
         assert base == 0.0
 
@@ -197,9 +196,9 @@ class TestCalculateBaseQty:
         """Sundays are treated like any other day for restaurants open 7 days."""
         daily_sales = {"2026-05-03": {1: 10.0}}  # Previous Sunday
         base, weeks = _calculate_base_qty(
-            daily_sales, 1, 1,
+            daily_sales, 1,
             datetime(2026, 5, 10),  # Sunday
-            4, _make_mock_db(categories=[_make_mock_category(1, "Baked Goods", 1.0)]),
+            4,
         )
         assert base == 10.0  # Historical data contributes regardless of day
 
@@ -207,9 +206,9 @@ class TestCalculateBaseQty:
         """Fridays are school days, should return non-zero base."""
         daily_sales = {"2026-05-08": {1: 10.0}}  # Friday
         base, weeks = _calculate_base_qty(
-            daily_sales, 1, 1,
+            daily_sales, 1,
             datetime(2026, 5, 15),  # Friday
-            4, _make_mock_db(categories=[_make_mock_category(1, "Baked Goods", 1.0)]),
+            4,
         )
         assert base == 10.0  # Friday is a school day
 
@@ -236,16 +235,6 @@ class TestGetEventAdjustment:
     def test_empty_events(self):
         result = _get_event_adjustment(datetime(2026, 5, 11), [])
         assert result == 0.0
-
-
-# ── _DAY_MULTIPLIERS tests ───────────────────────────────────────────────────
-
-
-class TestDayMultipiers:
-    def test_all_day_multipliers_are_one(self):
-        """All days have 1.0 multiplier since restaurants are open 7 days."""
-        for day in range(7):
-            assert _DAY_MULTIPLIERS[day] == 1.0
 
 
 # ── generate_predictions integration tests ────────────────────────────────────

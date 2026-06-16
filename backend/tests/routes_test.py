@@ -636,8 +636,7 @@ class TestPredictions:
 
     def test_export_pdf_no_predictions(self, client):
         resp = client.get("/api/predictions/export/pdf")
-        assert resp.status_code == 200
-        assert "error" in resp.json()
+        assert resp.status_code == 404
 
     def test_export_pdf_with_predictions(self, client):
         """Test PDF export when predictions exist."""
@@ -665,8 +664,6 @@ class TestPredictions:
         })
         resp = client.get("/api/predictions/export/pdf?start_date=2026-06-01&end_date=2026-06-03")
         assert resp.status_code == 200
-        data = resp.json()
-        assert "pdf_base64" in data
-        assert "filename" in data
-        assert "total_predictions" in data
-        assert data["total_predictions"] > 0
+        assert resp.headers["content-type"] == "application/pdf"
+        assert resp.content[:4] == b"%PDF"
+        assert "attachment" in resp.headers["content-disposition"]

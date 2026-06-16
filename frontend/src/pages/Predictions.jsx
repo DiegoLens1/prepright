@@ -110,23 +110,18 @@ export default function Predictions({ API }) {
           start_date: fmt(weekStart),
           end_date: fmt(weekEnd),
         },
-        responseType: "json",
+        responseType: "blob",
       });
 
-      const hex = res.data.pdf_base64;
-      const bytes = new Uint8Array(hex.length / 2);
-      for (let i = 0; i < hex.length; i += 2) {
-        bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
-      }
-      const blob = new Blob([bytes], { type: "application/pdf" });
+      const blob = new Blob([res.data], { type: "application/pdf" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = res.data.filename;
+      a.download = `predictions_${fmt(weekStart)}_to_${fmt(weekEnd)}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      alert(err.response?.data?.error || "Failed to export PDF");
+      alert(err.response?.status === 404 ? "No predictions to export" : "Failed to export PDF");
     } finally {
       setExporting(false);
     }

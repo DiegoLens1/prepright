@@ -43,5 +43,10 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
     db_cat = db.query(models.Category).filter(models.Category.id == category_id).first()
     if not db_cat:
         raise HTTPException(404, "Category not found")
+    # Deactivate products in this category so they drop out of every active
+    # query (matches the UI warning) before the category row is removed.
+    db.query(models.Product).filter(
+        models.Product.category_id == category_id
+    ).update({models.Product.active: False}, synchronize_session=False)
     db.delete(db_cat)
     db.commit()

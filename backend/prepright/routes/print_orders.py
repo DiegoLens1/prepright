@@ -129,9 +129,11 @@ def simulate_print_order(
                 .all()
             )
             for p in active_products:
+                # The data model has no price field (margin_pct is a prep-quantity
+                # buffer, not money), so the demo receipt uses a flat placeholder.
                 products_map[p.id] = {
                     "name": p.name,
-                    "price": round(p.margin_pct, 2) if p.margin_pct else 5.00,
+                    "price": 5.00,
                 }
 
     # Fallback to demo products if no DB products available

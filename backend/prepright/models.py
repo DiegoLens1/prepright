@@ -1,5 +1,4 @@
 from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
-from sqlalchemy.dialects.sqlite import JSON
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone
 
@@ -89,7 +88,6 @@ class Prediction(Base):
     base_qty = Column(Float, default=0.0)
     weather_adjustment = Column(Float, default=0.0)
     event_adjustment = Column(Float, default=0.0)
-    discount_adjustment = Column(Float, default=0.0)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     product = relationship("Product")

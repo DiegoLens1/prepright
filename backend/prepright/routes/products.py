@@ -87,5 +87,10 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db_prod = db.query(models.Product).filter(models.Product.id == product_id).first()
     if not db_prod:
         raise HTTPException(404, "Product not found")
+    # Clear rows that FK-reference this product but have no ORM cascade
+    # (aliases & recipes cascade automatically). Sales history and predictions
+    # for this product are intentionally discarded on a hard delete.
+    db.query(models.Prediction).filter(models.Prediction.product_id == product_id).delete(synchronize_session=False)
+    db.query(models.SalesRecord).filter(models.SalesRecord.product_id == product_id).delete(synchronize_session=False)
     db.delete(db_prod)
     db.commit()

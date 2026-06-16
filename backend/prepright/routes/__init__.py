@@ -1,9 +1,19 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from prepright.settings import get_cors_origins
+from prepright.database import init_db
 from prepright.routes import categories, ingredients, products, recipes, events, settings, receipts, predictions, templates, print_orders
 
-app = FastAPI(title="PrepRight", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(title="PrepRight", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

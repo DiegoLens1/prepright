@@ -10,18 +10,6 @@ from sqlalchemy.orm import Session
 from prepright import models
 
 
-# Day-of-week multipliers (restaurants open 7 days)
-# Monday=0, Sunday=6
-_DAY_MULTIPLIERS = {
-    0: 1.0,   # Monday
-    1: 1.0,   # Tuesday
-    2: 1.0,   # Wednesday
-    3: 1.0,   # Thursday
-    4: 1.0,   # Friday
-    5: 1.0,   # Saturday
-    6: 1.0,   # Sunday
-}
-
 # Weather adjustment map per category sensitivity
 _WEATHER_MAP = {
     "normal": 0.0,
@@ -31,7 +19,7 @@ _WEATHER_MAP = {
 }
 
 
-def _get_setting(db: Session, key: str, default: str = "4") -> str:
+def _get_setting(db: Session, key: str, default: str) -> str:
     """Get a setting value with a default fallback."""
     setting = db.query(models.Setting).filter(models.Setting.key == key).first()
     return setting.value if setting else default
@@ -48,7 +36,7 @@ def _get_lookback_weeks(db: Session) -> int:
     try:
         return max(1, int(val))
     except (ValueError, TypeError):
-        return 4
+        return 3
 
 
 def _calculate_daily_sales(sales: List[models.SalesRecord]) -> dict:
@@ -66,21 +54,11 @@ def _calculate_daily_sales(sales: List[models.SalesRecord]) -> dict:
 def _calculate_base_qty(
     daily_sales: dict,
     product_id: int,
-    category_id: int,
     target_date: datetime,
     lookback_weeks: int,
-    db: Session,
 ) -> tuple:
     """Calculate base predicted quantity for a product on a target date."""
     target_day_of_week = target_date.weekday()
-
-    # Get the category's weather sensitivity
-    category = (
-        db.query(models.Category)
-        .filter(models.Category.id == category_id)
-        .first()
-    )
-    weather_sensitivity = category.weather_sensitivity if category else 1.0
 
     # Collect only same day-of-week history
     same_day_history = []
@@ -162,7 +140,6 @@ def generate_predictions(
 
     # Fetch all events
     events = db.query(models.Event).order_by(models.Event.date).all()
-    event_map = {e.date: e for e in events}
 
     # Fetch all active products with categories
     products = (
@@ -205,10 +182,8 @@ def generate_predictions(
             base_qty, data_days = _calculate_base_qty(
                 daily_sales,
                 product.id,
-                product.category_id,
                 current,
                 lookback_weeks,
-                db,
             )
 
             # Skip predictions if not enough same-day historical data
@@ -227,15 +202,11 @@ def generate_predictions(
             event_adj = _get_event_adjustment(current, events)
             event_adjusted = weather_adjusted * (1 + event_adj)
 
-            # Apply day-of-week multiplier
-            day_mult = _DAY_MULTIPLIERS.get(current.weekday(), 1.0)
-            adjusted_qty = event_adjusted * day_mult
-
             # Apply the per-product safety margin: bump the forecast up by
             # margin_pct% so you prep a buffer above raw predicted demand.
             margin_pct = product.margin_pct or 0.0
             margin_adj = margin_pct / 100.0
-            predicted_qty = adjusted_qty * (1 + margin_adj)
+            predicted_qty = event_adjusted * (1 + margin_adj)
 
             predictions.append({
                 "date": date_str,
