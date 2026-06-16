@@ -356,6 +356,98 @@ class TestParseReceipt:
         assert len(result.unmatched) >= 1
 
 
+class TestQuantityGroupNone:
+    """Regression tests for the 'name + price' templates (quantity_group=None)."""
+
+    def test_no_quantity_group_defaults_to_one(self):
+        # The seeded "Simple (name + price)" template has quantity_group=None.
+        tmpl = _make_mock_template(
+            name="Simple",
+            line_pattern=r"^(?P<name>[^0-9]+?)\s+(?P<price>\d+\.?\d+)$",
+            product_name_group="name",
+            quantity_group=None,
+            price_group="price",
+        )
+        db = _make_mock_db(templates=[tmpl])
+        parser = ReceiptParser(db)
+
+        # Must not raise IndexError from match.group(None); qty defaults to 1.
+        result = parser.parse_receipt("Koffie 2.50", template_name="Simple")
+        assert result.parsed_line_count == 1
+        assert result.lines[0].product_name == "Koffie"
+        assert result.lines[0].quantity == 1.0
+        assert result.lines[0].price == 2.50
+
+
+class TestStopLines:
+    def test_metadata_lines_skipped(self):
+        tmpl = _make_mock_template(
+            name="Simple",
+            line_pattern=r"^(?P<name>[^0-9]+?)\s+(?P<price>\d+\.?\d+)$",
+            product_name_group="name",
+            quantity_group=None,
+            price_group="price",
+        )
+        db = _make_mock_db(templates=[tmpl])
+        parser = ReceiptParser(db)
+
+        text = "KVK: 12345678\nKoffie 2.50\nTOTAAL 21.75"
+        result = parser.parse_receipt(text, template_name="Simple")
+        # KVK and TOTAAL are stop lines → only the real product is parsed.
+        assert result.parsed_line_count == 1
+        assert result.lines[0].product_name == "Koffie"
+        # Stop lines are skipped entirely, not added to unmatched.
+        assert "KVK: 12345678" not in result.unmatched
+        assert "TOTAAL 21.75" not in result.unmatched
+
+
+class TestBestEffortParse:
+    def test_picks_template_that_parses_most_lines(self):
+        # Two keyword-less generic templates (like the seeded ones). The
+        # "name + price" template fits a qty-less receipt; the qty template
+        # mis-parses prices. Best-effort should select the better one.
+        simple = _make_mock_template(
+            name="Simple",
+            source_keyword=None,
+            line_pattern=r"^(?P<name>[^0-9]+?)\s+(?P<price>\d+\.?\d+)$",
+            product_name_group="name",
+            quantity_group=None,
+            price_group="price",
+        )
+        qty = _make_mock_template(
+            name="Standard POS",
+            source_keyword=None,
+            line_pattern=r"^(?P<name>[^0-9]+?)\s+(?P<qty>\d+\.?\d*)\s*×?\s*(?P<price>\d+\.?\d+)$",
+            product_name_group="name",
+            quantity_group="qty",
+            price_group="price",
+        )
+        db = _make_mock_db(templates=[qty, simple])  # qty first to test tie-break
+        parser = ReceiptParser(db)
+
+        # "Kaasstengel 2.00" exposes the bad parse: the qty template splits it
+        # into qty=2.0, price=0.0 (implausible), while "Simple" reads 2.00.
+        result = parser.parse_receipt("Koffie 2.50\nKaasstengel 2.00")
+        assert result.template_name == "Simple"
+        assert result.parsed_line_count == 2
+        assert result.lines[0].price == 2.50  # correct, not mis-split into 50
+
+    def test_returns_none_when_nothing_parses(self):
+        tmpl = _make_mock_template(
+            name="Simple",
+            source_keyword=None,
+            line_pattern=r"^(?P<name>[^0-9]+?)\s+(?P<price>\d+\.?\d+)$",
+            product_name_group="name",
+            quantity_group=None,
+            price_group="price",
+        )
+        db = _make_mock_db(templates=[tmpl])
+        parser = ReceiptParser(db)
+
+        result = parser.parse_receipt("nothing here matches at all")
+        assert result.template_name == "none"
+
+
 # ── match_products tests ──────────────────────────────────────────────────────
 
 

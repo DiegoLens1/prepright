@@ -23,6 +23,30 @@ from sqlalchemy.orm import Session
 from prepright import models, schemas
 
 
+# Lines whose first token is one of these are receipt metadata (store info,
+# totals, payment, footer)
+_STOP_KEYWORDS = {
+    "TOTAAL", "TOTAL", "SUBTOTAAL", "SUBTOTAL", "BTW", "VAT", "KVK", "IBAN",
+    "TEL", "PIN", "CONTANT", "CASH", "WISSELGELD", "CHANGE", "KASSA", "BON",
+    "DATUM", "DATE", "BEDANKT", "THANK", "TIP",
+}
+
+
+def _is_stop_line(line: str) -> bool:
+    """True if the line's first token marks it as receipt metadata, not a product."""
+    tokens = line.upper().replace(":", " ").split()
+    return bool(tokens) and tokens[0] in _STOP_KEYWORDS
+
+
+def _plausible_price_count(result: "ParseResult") -> int:
+    """Count parsed lines with a positive price — a soft signal of a good parse.
+
+    Used to break ties when auto-selecting among generic templates: a template
+    that yields real-looking prices (e.g. 4.50) is preferred over one that
+    mis-splits them (e.g. price 0.0 from a qty-less line)."""
+    return sum(1 for line in result.lines if line.price and line.price > 0)
+
+
 @dataclass
 class ParsedLine:
     """A single product line parsed from a receipt."""
@@ -111,27 +135,70 @@ class ReceiptParser:
         return ReceiptTemplate.from_db(best_match) if best_match else None
 
     def parse_receipt(self, text: str, template_name: Optional[str] = None) -> ParseResult:
-        """Parse a receipt using the specified or auto-detected template."""
-        # Compile template
-        template = None
+        """Parse a receipt using the specified or auto-detected template.
+
+        Selection order:
+        1. Explicit ``template_name`` if given (returns a "none" result if it is
+           not found, preserving the original contract).
+        2. Auto-detection via ``source_keyword``.
+        3. Best-effort: try every active template and keep the one that parses
+           the most lines — needed because the bundled generic templates carry
+           no ``source_keyword`` and so can never be auto-detected by keyword.
+        """
         if template_name:
             db_template = self.db.query(models.ReceiptTemplate).filter(
                 models.ReceiptTemplate.name == template_name,
                 models.ReceiptTemplate.active == True
             ).first()
-            if db_template:
-                template = ReceiptTemplate.from_db(db_template)
-        else:
-            template = self.detect_template(text)
+            if not db_template:
+                return self._none_result(text)
+            return self._parse_with_template(text, ReceiptTemplate.from_db(db_template))
 
-        if not template:
-            return ParseResult(
-                template_name="none",
-                unmatched=[text[:200]],
-                raw_line_count=1,
-                parsed_line_count=0,
+        detected = self.detect_template(text)
+        if detected:
+            return self._parse_with_template(text, detected)
+
+        return self._best_effort_parse(text)
+
+    @staticmethod
+    def _none_result(text: str) -> ParseResult:
+        """Result returned when no usable template could be applied."""
+        return ParseResult(
+            template_name="none",
+            unmatched=[text[:200]],
+            raw_line_count=1,
+            parsed_line_count=0,
+        )
+
+    def _best_effort_parse(self, text: str) -> ParseResult:
+        """Parse with every active template and return the best-scoring result.
+
+        Score is ``(parsed_line_count, plausible_price_count, -unmatched)`` so
+        the template that parses the most lines wins, with realistic prices and
+        fewer leftovers as tie-breakers. Falls back to a "none" result if no
+        template parses anything."""
+        templates = self.db.query(models.ReceiptTemplate).filter(
+            models.ReceiptTemplate.active == True
+        ).all()
+
+        best: Optional[ParseResult] = None
+        best_score = None
+        for db_t in templates:
+            result = self._parse_with_template(text, ReceiptTemplate.from_db(db_t))
+            score = (
+                result.parsed_line_count,
+                _plausible_price_count(result),
+                -len(result.unmatched),
             )
+            if best_score is None or score > best_score:
+                best, best_score = result, score
 
+        if best is None or best.parsed_line_count == 0:
+            return self._none_result(text)
+        return best
+
+    def _parse_with_template(self, text: str, template: ReceiptTemplate) -> ParseResult:
+        """Apply a single template to the receipt text."""
         result = ParseResult(template_name=template.name)
         compiled = template.compile_pattern()
 
@@ -141,6 +208,10 @@ class ReceiptParser:
         for line in lines:
             line = line.strip()
             if not line:
+                continue
+
+            # Skip receipt metadata (store header, totals, payment, footer).
+            if _is_stop_line(line):
                 continue
 
             # Apply prefix/suffix stripping
@@ -153,8 +224,13 @@ class ReceiptParser:
             if match:
                 try:
                     product_name = match.group(template.product_name_group).strip()
-                    quantity_str = match.group(template.quantity_group)
-                    quantity = float(quantity_str) if quantity_str else 1.0
+
+                    # quantity_group may be None (e.g. "name + price" templates),
+                    # in which case the quantity defaults to 1.
+                    quantity = 1.0
+                    if template.quantity_group:
+                        quantity_str = match.group(template.quantity_group)
+                        quantity = float(quantity_str) if quantity_str else 1.0
 
                     price = None
                     if template.price_group:
@@ -170,7 +246,7 @@ class ReceiptParser:
                         price=price,
                     ))
                     result.parsed_line_count += 1
-                except (AttributeError, ValueError):
+                except (AttributeError, ValueError, IndexError):
                     result.unmatched.append(line)
             else:
                 result.unmatched.append(line)
