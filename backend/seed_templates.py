@@ -44,7 +44,7 @@ def seed_templates():
             "name": "Simple (name + price)",
             "description": "Items with name and price, quantity assumed 1",
             "active": True,
-            "source_keyword": None,
+            "source_keyword": "DEMO",
             "line_pattern": r"^(?P<name>[^0-9]+?)\s+(?P<price>\d+\.?\d+)$",
             "product_name_group": "name",
             "quantity_group": None,
@@ -56,18 +56,26 @@ def seed_templates():
         },
     ]
 
-    count = 0
+    created = 0
+    updated = 0
     for tmpl_data in default_templates:
         existing = db.query(models.ReceiptTemplate).filter(
             models.ReceiptTemplate.name == tmpl_data["name"]
         ).first()
-        if not existing:
+        if existing:
+            # Upsert: reconcile the stored template with the bundled definition
+            # so pattern/group tweaks take effect on redeploy instead of being
+            # silently skipped.
+            for key, value in tmpl_data.items():
+                setattr(existing, key, value)
+            updated += 1
+        else:
             db.add(models.ReceiptTemplate(**tmpl_data))
-            count += 1
+            created += 1
 
     db.commit()
     db.close()
-    print(f"Seeded {count} receipt templates.")
+    print(f"Seeded receipt templates: {created} created, {updated} updated.")
 
 
 if __name__ == "__main__":
