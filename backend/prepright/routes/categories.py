@@ -8,8 +8,11 @@ router = APIRouter(prefix="/api/categories", tags=["categories"])
 
 
 @router.get("", response_model=list[schemas.CategoryRead])
-def list_categories(db: Session = Depends(get_db)):
-    return db.query(models.Category).filter(models.Category.active == True).all()
+def list_categories(include_inactive: bool = False, db: Session = Depends(get_db)):
+    query = db.query(models.Category)
+    if not include_inactive:
+        query = query.filter(models.Category.active == True)
+    return query.all()
 
 
 @router.post("", response_model=schemas.CategoryRead, status_code=status.HTTP_201_CREATED)

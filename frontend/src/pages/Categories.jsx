@@ -13,7 +13,7 @@ export default function Categories({ API }) {
   const [sensitivity, setSensitivity] = useState(1.0);
 
   useEffect(() => {
-    axios.get(`${API}/categories`).then((res) => {
+    axios.get(`${API}/categories?include_inactive=true`).then((res) => {
       setCategories(res.data);
       setLoading(false);
     });
