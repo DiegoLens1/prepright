@@ -62,7 +62,7 @@ export default function SettingsPage({ API }) {
           <input
             className="border rounded px-3 py-2 text-sm w-32"
             type="number"
-            value={settings.prediction_weeks || 4}
+            value={settings.prediction_weeks || 3}
             onChange={(e) => update("prediction_weeks", e.target.value)}
           />
           <p className="text-xs text-gray-500 mt-2">

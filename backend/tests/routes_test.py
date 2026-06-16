@@ -543,8 +543,10 @@ class TestPredictions:
         # Add sales records to ensure predictions are generated
         db = SessionLocal()
         prod = db.query(models.Product).filter(models.Product.name == "Test Product").first()
-        for i in range(14):
-            sale_date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+        # History must precede the prediction window (which starts 2026-06-01):
+        # four weeks of daily sales so every target has >= 2 prior same-weekdays.
+        for i in range(1, 29):
+            sale_date = (datetime(2026, 6, 1) - timedelta(days=i)).strftime("%Y-%m-%d")
             record = models.SalesRecord(
                 product_id=prod.id,
                 quantity=5.0,
@@ -569,8 +571,9 @@ class TestPredictions:
         # Add sales records
         db = SessionLocal()
         prod = db.query(models.Product).filter(models.Product.id == prod_id).first()
-        for i in range(7):
-            sale_date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+        # History must precede the prediction window (which starts 2026-06-01).
+        for i in range(1, 29):
+            sale_date = (datetime(2026, 6, 1) - timedelta(days=i)).strftime("%Y-%m-%d")
             record = models.SalesRecord(
                 product_id=prod.id,
                 quantity=3.0,
@@ -596,8 +599,10 @@ class TestPredictions:
         # Add sales records so the prediction engine has data to work with
         db = SessionLocal()
         prod = db.query(models.Product).filter(models.Product.id == prod_id).first()
-        for i in range(14):
-            sale_date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+        # History must precede the prediction window (which starts 2026-06-01):
+        # four weeks of daily sales so every target has >= 2 prior same-weekdays.
+        for i in range(1, 29):
+            sale_date = (datetime(2026, 6, 1) - timedelta(days=i)).strftime("%Y-%m-%d")
             record = models.SalesRecord(
                 product_id=prod.id,
                 quantity=5.0,
@@ -640,8 +645,10 @@ class TestPredictions:
         # Add sales records
         db = SessionLocal()
         prod = db.query(models.Product).filter(models.Product.id == prod_id).first()
-        for i in range(14):
-            sale_date = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+        # History must precede the prediction window (which starts 2026-06-01):
+        # four weeks of daily sales so every target has >= 2 prior same-weekdays.
+        for i in range(1, 29):
+            sale_date = (datetime(2026, 6, 1) - timedelta(days=i)).strftime("%Y-%m-%d")
             record = models.SalesRecord(
                 product_id=prod.id,
                 quantity=5.0,

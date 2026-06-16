@@ -44,7 +44,7 @@ def _get_weather_condition(db: Session) -> str:
 
 def _get_lookback_weeks(db: Session) -> int:
     """Get the number of weeks to look back for predictions."""
-    val = _get_setting(db, "prediction_weeks", "4")
+    val = _get_setting(db, "prediction_weeks", "3")
     try:
         return max(1, int(val))
     except (ValueError, TypeError):
