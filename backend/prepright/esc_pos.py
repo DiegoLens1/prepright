@@ -13,11 +13,179 @@ Usage:
 from typing import List
 
 
+# ── ESC/POS command tables ──────────────────────────────────────────────────
+#
+# Each entry maps a command byte (the byte *after* the ESC/GS/FS prefix) to the
+# number of fixed parameter bytes that follow it. ESC/POS parameters are binary
+# and routinely fall in the printable-ASCII range (e.g. ESC ! 0x30), so the only
+# reliable way to strip a command is to know exactly how many bytes it consumes.
+#
+# Commands whose length is data-dependent (cut, barcodes, bit images,
+# length-prefixed GS( functions, NUL-terminated lists) are handled separately in
+# _command_length() and are not listed here.
+
+# ESC <cmd> [params...]
+_ESC_PARAMS = {
+    0x20: 1,  # SP  set right-side character spacing
+    0x21: 1,  # !   select print mode
+    0x24: 2,  # $   set absolute print position
+    0x25: 1,  # %   select/cancel user-defined character set
+    0x2D: 1,  # -   turn underline on/off
+    0x32: 0,  # 2   select default line spacing
+    0x33: 1,  # 3   set line spacing
+    0x3D: 1,  # =   select peripheral device
+    0x40: 0,  # @   initialize printer
+    0x44: -1,  # D  set horizontal tab positions (NUL-terminated) — see below
+    0x45: 1,  # E   turn emphasized (bold) on/off
+    0x47: 1,  # G   turn double-strike on/off
+    0x4A: 1,  # J   print and feed paper n dots
+    0x4B: 1,  # K   print and reverse feed n dots
+    0x4D: 1,  # M   select character font
+    0x52: 1,  # R   select international character set
+    0x53: 0,  # S   select standard mode
+    0x54: 1,  # T   select print direction (page mode)
+    0x56: 1,  # V   turn 90° rotation on/off
+    0x5C: 2,  # \   set relative print position
+    0x61: 1,  # a   select justification
+    0x63: 2,  # c   panel/paper sensor commands (c3/c4/c5 n)
+    0x64: 1,  # d   print and feed n lines
+    0x65: 1,  # e   print and reverse feed n lines
+    0x70: 3,  # p   generate pulse (m t1 t2)
+    0x72: 1,  # r   select print color
+    0x74: 1,  # t   select character code table
+    0x7B: 1,  # {   turn upside-down printing on/off
+}
+
+# GS <cmd> [params...]
+_GS_PARAMS = {
+    0x21: 1,  # !   select character size
+    0x24: 2,  # $   set absolute vertical print position (page mode)
+    0x28: -1,  # (  length-prefixed function groups (A/B/C/D/E/...) — see below
+    0x2A: -1,  # *  define downloaded bit image — see below
+    0x2F: 1,  # /   print downloaded bit image
+    0x3A: 0,  # :   start/end macro definition
+    0x40: 0,  # @   (rarely GS @) — treat as no-param
+    0x42: 1,  # B   turn white/black reverse on/off
+    0x48: 1,  # H   select HRI character print position
+    0x49: 1,  # I   transmit printer ID
+    0x4C: 2,  # L   set left margin
+    0x50: 2,  # P   set horizontal/vertical motion units
+    0x56: -1,  # V  select cut mode and cut paper — see below
+    0x57: 2,  # W   set print area width
+    0x61: 1,  # a   enable/disable Automatic Status Back
+    0x66: 1,  # f   select HRI character font
+    0x68: 1,  # h   set barcode height
+    0x6B: -1,  # k  print barcode — see below
+    0x72: 1,  # r   transmit status
+    0x76: -1,  # v  print raster bit image (GS v 0) — see below
+    0x77: 1,  # w   set barcode width
+}
+
+# FS <cmd> [params...]
+_FS_PARAMS = {
+    0x21: 1,  # !   select print mode for Kanji
+    0x26: 0,  # &   select Kanji character mode
+    0x2D: 1,  # -   turn underline on/off for Kanji
+    0x2E: 0,  # .   cancel Kanji character mode
+    0x43: 1,  # C   select Kanji code system
+    0x53: 2,  # S   set Kanji character spacing
+    0x57: 1,  # W   turn quadruple-size Kanji on/off
+}
+
+
+def _u16(data: bytes, i: int) -> int:
+    """Read a little-endian 16-bit value at offset i (0 if out of range)."""
+    if i + 1 >= len(data):
+        return 0
+    return data[i] + (data[i + 1] << 8)
+
+
+def _command_length(data: bytes, i: int) -> int:
+    """Return the total number of bytes occupied by the command starting at data[i].
+
+    data[i] is an ESC (0x1B), GS (0x1D) or FS (0x1C) prefix. The returned length
+    includes the prefix, the command byte and all of its parameter/data bytes, so
+    the caller can skip the whole command with ``i += _command_length(data, i)``.
+    """
+    length = len(data)
+    prefix = data[i]
+
+    # A lone prefix at end of buffer.
+    if i + 1 >= length:
+        return 1
+
+    cmd = data[i + 1]
+    table = {0x1B: _ESC_PARAMS, 0x1D: _GS_PARAMS, 0x1C: _FS_PARAMS}[prefix]
+    params = table.get(cmd)
+
+    # Fixed-length command: prefix + cmd + params.
+    if params is not None and params >= 0:
+        return 2 + params
+
+    # ── Variable-length / data-bearing commands ──────────────────────────────
+
+    # ESC D ... NUL  — horizontal tab positions, terminated by 0x00.
+    if prefix == 0x1B and cmd == 0x44:
+        j = i + 2
+        while j < length and data[j] != 0x00:
+            j += 1
+        return (j - i) + 1  # include the terminating NUL
+
+    # GS V — cut paper. m is 1 byte; m in {65,66,103,104} adds a feed byte n.
+    if prefix == 0x1D and cmd == 0x56:
+        m = data[i + 2] if i + 2 < length else 0
+        return 4 if m in (65, 66, 103, 104) else 3
+
+    # GS ( <fn> pL pH [params x (pL+pH*256)] — length-prefixed function groups.
+    if prefix == 0x1D and cmd == 0x28:
+        n = _u16(data, i + 3)  # pL pH at i+3, i+4
+        return 5 + n  # prefix, cmd, fn, pL, pH, then n data bytes
+
+    # GS * x y [x*y*8] — define downloaded bit image.
+    if prefix == 0x1D and cmd == 0x2A:
+        x = data[i + 2] if i + 2 < length else 0
+        y = data[i + 3] if i + 3 < length else 0
+        return 4 + (x * y * 8)
+
+    # GS v 0 m xL xH yL yH [data] — print raster bit image.
+    if prefix == 0x1D and cmd == 0x76:
+        # data[i+2] is the sub-function (0 / '0'); m, then dimensions follow.
+        x_bytes = _u16(data, i + 4)  # xL xH (width in bytes)
+        y_dots = _u16(data, i + 6)   # yL yH (height in dots)
+        return 8 + (x_bytes * y_dots)
+
+    # GS k — print barcode. Two forms:
+    #   m in 0..6 : GS k m d1..dk NUL   (NUL-terminated data)
+    #   m in 65.. : GS k m n  d1..dn    (length byte n)
+    if prefix == 0x1D and cmd == 0x6B:
+        m = data[i + 2] if i + 2 < length else 0
+        if m >= 65:
+            n = data[i + 3] if i + 3 < length else 0
+            return 4 + n
+        j = i + 3
+        while j < length and data[j] != 0x00:
+            j += 1
+        return (j - i) + 1  # include terminating NUL
+
+    # ESC * m nL nH [data] — select bit image mode.
+    if prefix == 0x1B and cmd == 0x2A:
+        m = data[i + 2] if i + 2 < length else 0
+        k = _u16(data, i + 3)
+        per_col = 3 if m in (32, 33) else 1
+        return 5 + (k * per_col)
+
+    # Unknown command: skip just the prefix + command byte. We can't know its
+    # parameter length, but consuming the command byte avoids re-entering this
+    # branch and is safer than emitting it as text.
+    return 2
+
+
 def esc_pos_to_text(data: bytes) -> str:
     """Convert raw ESC/POS bytes to plain text.
 
-    Strips all ESC/POS control commands and returns only printable text.
-    Handles line feeds, column positioning, and character set changes.
+    Strips ESC/POS control commands using a command-length table (so command
+    parameter bytes that happen to be printable, e.g. ``ESC ! 0x30``, are not
+    leaked into the output) and returns only the visible text and newlines.
 
     Args:
         data: Raw ESC/POS bytes from the printer.
@@ -35,119 +203,28 @@ def esc_pos_to_text(data: bytes) -> str:
     while i < length:
         byte = data[i]
 
+        # ESC / GS / FS command sequences — skip the whole command.
+        if byte in (0x1B, 0x1D, 0x1C):
+            i += _command_length(data, i)
+
         # Printable ASCII (0x20-0x7E)
-        if 0x20 <= byte <= 0x7E:
+        elif 0x20 <= byte <= 0x7E:
             result.append(chr(byte))
             i += 1
 
-        # Carriage return → newline
-        elif byte == 0x0D:
-            result.append("\n")
-            i += 1
-
-        # Line feed
+        # Line feed → newline
         elif byte == 0x0A:
             result.append("\n")
             i += 1
 
-        # Null byte → space (common padding/separator)
-        elif byte == 0x00:
-            result.append(" ")
+        # Carriage return → newline (collapse CRLF into a single newline)
+        elif byte == 0x0D:
+            result.append("\n")
+            if i + 1 < length and data[i + 1] == 0x0A:
+                i += 1
             i += 1
 
-        # ESC (0x1B) sequence: skip ESC + all following command bytes
-        elif byte == 0x1B:
-            # Skip the ESC byte itself and all subsequent command bytes
-            # until we hit printable text or end of data
-            i += 1
-            while i < length:
-                next_byte = data[i]
-                # Stop skipping when we encounter another control prefix
-                # or printable text
-                if next_byte == 0x1B:
-                    # Nested ESC — treat as start of new sequence
-                    break
-                elif next_byte == 0x1D:
-                    # GS inside ESC sequence — skip it too
-                    i += 1
-                    continue
-                elif next_byte == 0x1C:
-                    # FS inside ESC sequence — skip it too
-                    i += 1
-                    continue
-                elif 0x20 <= next_byte <= 0x7E:
-                    # Printable text resumes — stop skipping
-                    break
-                elif next_byte == 0x0A:
-                    # Line feed inside ESC sequence — treat as newline
-                    result.append("\n")
-                    i += 1
-                    break
-                elif next_byte == 0x0D:
-                    # CR inside ESC sequence — treat as newline
-                    result.append("\n")
-                    i += 1
-                    break
-                else:
-                    # Other control byte inside ESC sequence — skip
-                    i += 1
-                    continue
-            i += 1
-
-        # GS (0x1D) sequence: skip GS + all following command bytes
-        elif byte == 0x1D:
-            i += 1
-            while i < length:
-                next_byte = data[i]
-                if next_byte == 0x1D:
-                    break
-                elif next_byte == 0x1B:
-                    break
-                elif next_byte == 0x1C:
-                    i += 1
-                    continue
-                elif 0x20 <= next_byte <= 0x7E:
-                    break
-                elif next_byte == 0x0A:
-                    result.append("\n")
-                    i += 1
-                    break
-                elif next_byte == 0x0D:
-                    result.append("\n")
-                    i += 1
-                    break
-                else:
-                    i += 1
-                    continue
-            i += 1
-
-        # FS (0x1C) sequence: skip FS + all following command bytes
-        elif byte == 0x1C:
-            i += 1
-            while i < length:
-                next_byte = data[i]
-                if next_byte == 0x1C:
-                    break
-                elif next_byte == 0x1B:
-                    break
-                elif next_byte == 0x1D:
-                    break
-                elif 0x20 <= next_byte <= 0x7E:
-                    break
-                elif next_byte == 0x0A:
-                    result.append("\n")
-                    i += 1
-                    break
-                elif next_byte == 0x0D:
-                    result.append("\n")
-                    i += 1
-                    break
-                else:
-                    i += 1
-                    continue
-            i += 1
-
-        # High bytes (0x80-0xFF): try cp437, fall back to latin-1
+        # High bytes (0x80-0xFF): decode as cp437, fall back to latin-1
         elif byte >= 0x80:
             try:
                 result.append(byte.to_bytes(1, "big").decode("cp437"))
@@ -158,7 +235,7 @@ def esc_pos_to_text(data: bytes) -> str:
                     pass
             i += 1
 
-        # Other control bytes (0x01-0x1F except 0x0D, 0x0A): skip
+        # Other control bytes (NUL, HT, etc.): drop
         else:
             i += 1
 
