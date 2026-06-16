@@ -229,7 +229,13 @@ def generate_predictions(
 
             # Apply day-of-week multiplier
             day_mult = _DAY_MULTIPLIERS.get(current.weekday(), 1.0)
-            predicted_qty = event_adjusted * day_mult
+            adjusted_qty = event_adjusted * day_mult
+
+            # Apply the per-product safety margin: bump the forecast up by
+            # margin_pct% so you prep a buffer above raw predicted demand.
+            margin_pct = product.margin_pct or 0.0
+            margin_adj = margin_pct / 100.0
+            predicted_qty = adjusted_qty * (1 + margin_adj)
 
             predictions.append({
                 "date": date_str,
@@ -239,7 +245,7 @@ def generate_predictions(
                 "base_qty": round(base_qty, 2),
                 "weather_adjustment": round(weather_adj, 4),
                 "event_adjustment": round(event_adj, 4),
-
+                "margin_adjustment": round(margin_adj, 4),
             })
 
         current += timedelta(days=1)

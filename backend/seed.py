@@ -30,7 +30,7 @@ def seed_db():
     # Default settings
     default_settings = {
         "weather_condition": "normal",
-        "default_margin_pct": "20",
+        "default_margin_pct": "0",
         "prediction_weeks": "3",
     }
     for key, value in default_settings.items():

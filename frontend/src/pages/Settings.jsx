@@ -48,7 +48,7 @@ export default function SettingsPage({ API }) {
           <input
             className="border rounded px-3 py-2 text-sm w-32"
             type="number"
-            value={settings.default_margin_pct || 20}
+            value={settings.default_margin_pct || 0}
             onChange={(e) => update("default_margin_pct", e.target.value)}
           />
           <p className="text-xs text-gray-500 mt-2">

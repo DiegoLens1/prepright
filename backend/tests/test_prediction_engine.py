@@ -24,6 +24,7 @@ def _make_mock_product(
     name: str = "Pan Integral",
     category_id: int = 1,
     active: bool = True,
+    margin_pct: float = 0.0,
 ) -> models.Product:
     """Create a mock ORM model for a product."""
     prod = MagicMock(spec=models.Product)
@@ -31,6 +32,7 @@ def _make_mock_product(
     prod.name = name
     prod.category_id = category_id
     prod.active = active
+    prod.margin_pct = margin_pct
     return prod
 
 
@@ -356,6 +358,42 @@ class TestGeneratePredictions:
         if event_pred_with and event_pred_without:
             assert event_pred_with["event_adjustment"] == 0.3
             assert event_pred_with["predicted_qty"] > event_pred_without["predicted_qty"]
+
+    def test_margin_buffers_predicted_qty(self):
+        """The per-product margin_pct adds a safety buffer on top of demand."""
+        today = datetime.utcnow().date()
+        start = today
+        end = today + timedelta(days=7)
+        categories = [_make_mock_category(1, "Baked Goods", 1.0)]
+        # Two prior weeks of same-weekday history -> base demand of 8.
+        sales = [
+            _make_mock_sales_record(1, 8.0, str(today - timedelta(days=7))),
+            _make_mock_sales_record(1, 8.0, str(today - timedelta(days=14))),
+        ]
+        settings = [
+            _make_mock_setting("prediction_weeks", "4"),
+            _make_mock_setting("weather_condition", "normal"),
+        ]
+
+        # 0% margin -> prep equals demand.
+        prods0 = [_make_mock_product(1, "Pan", 1, True, margin_pct=0.0)]
+        preds0 = generate_predictions(
+            _make_mock_db(prods0, categories, sales, [], settings), str(start), str(end)
+        )
+        # 25% margin -> demand bumped up and rounded up.
+        prods25 = [_make_mock_product(1, "Pan", 1, True, margin_pct=25.0)]
+        preds25 = generate_predictions(
+            _make_mock_db(prods25, categories, sales, [], settings), str(start), str(end)
+        )
+
+        assert preds0 and preds25
+        p0 = next(p for p in preds0 if p["date"] == str(today))
+        p25 = next(p for p in preds25 if p["date"] == str(today))
+        assert p0["base_qty"] == 8.0
+        assert p0["margin_adjustment"] == 0.0
+        assert p0["predicted_qty"] == 8
+        assert p25["margin_adjustment"] == 0.25
+        assert p25["predicted_qty"] == 10  # ceil(8 * 1.25)
 
     def test_default_date_range(self):
         """Should default to tomorrow + 14 days."""
