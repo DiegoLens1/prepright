@@ -85,7 +85,10 @@ def _calculate_base_qty(
     # Collect only same day-of-week history
     same_day_history = []
 
-    cutoff_date = target_date - timedelta(weeks=lookback_weeks)
+    # Normalize to a plain date so comparisons work whether the caller passes
+    # a date or a datetime.
+    target_day = target_date.date() if isinstance(target_date, datetime) else target_date
+    cutoff_date = target_day - timedelta(weeks=lookback_weeks)
 
     for date_str, product_sales in daily_sales.items():
         if date_str < str(cutoff_date):
@@ -94,6 +97,11 @@ def _calculate_base_qty(
             continue
 
         date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        # Only count days strictly *before* the prediction date — the same
+        # weekday in previous weeks. Never fold in the target day's own actuals
+        # (or any later day) when predicting today or a past date.
+        if date_obj >= target_day:
+            continue
         if date_obj.weekday() == target_day_of_week:
             same_day_history.append(product_sales[product_id])
 

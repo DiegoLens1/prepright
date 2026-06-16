@@ -31,7 +31,7 @@ def seed_db():
     default_settings = {
         "weather_condition": "normal",
         "default_margin_pct": "20",
-        "prediction_weeks": "4",
+        "prediction_weeks": "3",
     }
     for key, value in default_settings.items():
         existing = db.query(models.Setting).filter(models.Setting.key == key).first()

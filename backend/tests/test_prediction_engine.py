@@ -258,12 +258,11 @@ class TestGeneratePredictions:
 
         products = [_make_mock_product(1, "Pan Integral", 1, True)]
         categories = [_make_mock_category(1, "Baked Goods", 1.0)]
-        # Add historical sales data
+        # Two prior weeks of same-weekday history (today's weekday) so the
+        # MIN_DATA_DAYS=2 threshold is met for the `today` target in range.
         sales = [
             _make_mock_sales_record(1, 10.0, str(today - timedelta(days=7))),
-            _make_mock_sales_record(1, 12.0, str(today - timedelta(days=6))),
-            _make_mock_sales_record(1, 8.0, str(today - timedelta(days=5))),
-            _make_mock_sales_record(1, 11.0, str(today - timedelta(days=4))),
+            _make_mock_sales_record(1, 12.0, str(today - timedelta(days=14))),
         ]
         events = []
         settings = [
@@ -274,7 +273,7 @@ class TestGeneratePredictions:
 
         predictions = generate_predictions(db, str(start), str(end))
 
-        # Should have generated predictions for weekdays only (Mon-Fri = 5 days)
+        # Should have generated predictions for the same-weekday targets in range
         assert len(predictions) > 0
 
     def test_no_active_products(self):
@@ -360,11 +359,14 @@ class TestGeneratePredictions:
 
     def test_default_date_range(self):
         """Should default to tomorrow + 14 days."""
+        today = datetime.utcnow().date()
         products = [_make_mock_product(1, "Pan Integral", 1, True)]
         categories = [_make_mock_category(1, "Baked Goods", 1.0)]
+        # Default range starts tomorrow; provide two prior weeks of same-weekday
+        # history relative to today so a target in range clears MIN_DATA_DAYS=2.
         sales = [
-            _make_mock_sales_record(1, 10.0, "2026-05-01"),
-            _make_mock_sales_record(1, 12.0, "2026-05-02"),
+            _make_mock_sales_record(1, 10.0, str(today - timedelta(days=7))),
+            _make_mock_sales_record(1, 12.0, str(today - timedelta(days=14))),
         ]
         events = []
         settings = [
@@ -384,16 +386,19 @@ class TestGeneratePredictions:
 
         products = [_make_mock_product(1, "Pan Integral", 1, True)]
         categories = [_make_mock_category(1, "Baked Goods", 1.0)]
-        # Add historical sales data
+        # Two prior weeks of same-weekday history. A 1-week lookback can never
+        # collect 2 same-weekday points (only the single week before the
+        # target), so the short case uses 2 weeks — the smallest lookback that
+        # can satisfy MIN_DATA_DAYS=2.
         sales = [
             _make_mock_sales_record(1, 10.0, str(today - timedelta(days=14))),
             _make_mock_sales_record(1, 12.0, str(today - timedelta(days=7))),
         ]
         events = []
 
-        # 1 week lookback
+        # 2 week lookback (shortest that can meet MIN_DATA_DAYS)
         settings_short = [
-            _make_mock_setting("prediction_weeks", "1"),
+            _make_mock_setting("prediction_weeks", "2"),
             _make_mock_setting("weather_condition", "normal"),
         ]
         db_short = _make_mock_db(products, categories, sales, events, settings_short)
@@ -427,11 +432,15 @@ class TestGeneratePredictions:
             _make_mock_category(2, "Dairy", 0.8),
             _make_mock_category(3, "Beverages", 1.2),
         ]
-        # Add historical sales data for each product
+        # Two prior weeks of same-weekday history per product so each clears
+        # MIN_DATA_DAYS=2 for the `today` target in range.
         sales = [
             _make_mock_sales_record(1, 10.0, str(today - timedelta(days=7))),
-            _make_mock_sales_record(2, 8.0, str(today - timedelta(days=6))),
-            _make_mock_sales_record(3, 5.0, str(today - timedelta(days=5))),
+            _make_mock_sales_record(1, 10.0, str(today - timedelta(days=14))),
+            _make_mock_sales_record(2, 8.0, str(today - timedelta(days=7))),
+            _make_mock_sales_record(2, 8.0, str(today - timedelta(days=14))),
+            _make_mock_sales_record(3, 5.0, str(today - timedelta(days=7))),
+            _make_mock_sales_record(3, 5.0, str(today - timedelta(days=14))),
         ]
         events = []
         settings = [
