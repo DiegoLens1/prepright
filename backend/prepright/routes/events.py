@@ -12,7 +12,7 @@ def list_events(db: Session = Depends(get_db)):
     return db.query(models.Event).order_by(models.Event.date).all()
 
 
-@router.post("/", response_model=schemas.EventRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.EventRead, status_code=status.HTTP_201_CREATED)
 def create_event(evt: schemas.EventCreate, db: Session = Depends(get_db)):
     if db.query(models.Event).filter(models.Event.date == evt.date).first():
         raise HTTPException(400, "Event on this date already exists")

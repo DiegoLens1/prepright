@@ -12,7 +12,7 @@ def list_ingredients(db: Session = Depends(get_db)):
     return db.query(models.Ingredient).filter(models.Ingredient.active == True).all()
 
 
-@router.post("/", response_model=schemas.IngredientRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.IngredientRead, status_code=status.HTTP_201_CREATED)
 def create_ingredient(ing: schemas.IngredientCreate, db: Session = Depends(get_db)):
     if db.query(models.Ingredient).filter(models.Ingredient.name == ing.name).first():
         raise HTTPException(400, "Ingredient already exists")

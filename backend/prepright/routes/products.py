@@ -38,7 +38,7 @@ def list_products(db: Session = Depends(get_db)):
     return [_product_to_schema(p) for p in products]
 
 
-@router.post("/", response_model=schemas.ProductRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.ProductRead, status_code=status.HTTP_201_CREATED)
 def create_product(prod: schemas.ProductCreate, db: Session = Depends(get_db)):
     if db.query(models.Product).filter(models.Product.name == prod.name).first():
         raise HTTPException(400, "Product already exists")

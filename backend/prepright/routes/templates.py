@@ -12,7 +12,7 @@ def list_templates(db: Session = Depends(get_db)):
     return db.query(models.ReceiptTemplate).order_by(models.ReceiptTemplate.name).all()
 
 
-@router.post("/", response_model=schemas.ReceiptTemplateRead, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=schemas.ReceiptTemplateRead, status_code=status.HTTP_201_CREATED)
 def create_template(template: schemas.ReceiptTemplateCreate, db: Session = Depends(get_db)):
     if db.query(models.ReceiptTemplate).filter(models.ReceiptTemplate.name == template.name).first():
         raise HTTPException(400, "Template already exists")
