@@ -131,7 +131,7 @@ class ReceiptTemplateCreate(BaseModel):
     source_keyword: Optional[str] = None
     line_pattern: str
     product_name_group: str = "name"
-    quantity_group: str = "qty"
+    quantity_group: Optional[str] = None  # optional: not every receipt has a qty column
     price_group: str = "price"
     line_prefix: Optional[str] = None
     line_suffix: Optional[str] = None

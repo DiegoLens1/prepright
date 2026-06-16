@@ -225,15 +225,18 @@ class ReceiptParser:
                 try:
                     product_name = match.group(template.product_name_group).strip()
 
-                    # quantity_group may be None (e.g. "name + price" templates),
-                    # in which case the quantity defaults to 1.
+                    # Only read a group if the regex actually defines it. The
+                    # quantity_group column defaults to "qty", so a "name + price"
+                    # template (no qty group) would otherwise raise IndexError on
+                    # every line. A missing quantity group means quantity = 1.
+                    groups = compiled.groupindex
                     quantity = 1.0
-                    if template.quantity_group:
+                    if template.quantity_group and template.quantity_group in groups:
                         quantity_str = match.group(template.quantity_group)
                         quantity = float(quantity_str) if quantity_str else 1.0
 
                     price = None
-                    if template.price_group:
+                    if template.price_group and template.price_group in groups:
                         price_str = match.group(template.price_group)
                         if price_str:
                             price = float(price_str.replace(",", "."))

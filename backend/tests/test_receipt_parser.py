@@ -359,6 +359,28 @@ class TestParseReceipt:
 class TestQuantityGroupNone:
     """Regression tests for the 'name + price' templates (quantity_group=None)."""
 
+    def test_quantity_group_absent_from_regex(self):
+        # The model defaults quantity_group to "qty", but a "name + price"
+        # regex has no such group. The parser must ignore the missing group
+        # (quantity -> 1) instead of raising IndexError and dropping the line.
+        tmpl = _make_mock_template(
+            name="Simple",
+            line_pattern=r"^(?P<name>[^0-9]+?)\s+(?P<price>\d+\.?\d+)$",
+            product_name_group="name",
+            quantity_group="qty",  # points at a group that isn't in the pattern
+            price_group="price",
+        )
+        db = _make_mock_db(templates=[tmpl])
+        parser = ReceiptParser(db)
+
+        result = parser.parse_receipt(
+            "Klein ontbijt               4.50", template_name="Simple"
+        )
+        assert result.parsed_line_count == 1
+        assert result.lines[0].product_name == "Klein ontbijt"
+        assert result.lines[0].quantity == 1.0
+        assert result.lines[0].price == 4.50
+
     def test_no_quantity_group_defaults_to_one(self):
         # The seeded "Simple (name + price)" template has quantity_group=None.
         tmpl = _make_mock_template(

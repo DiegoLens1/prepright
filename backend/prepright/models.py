@@ -108,7 +108,10 @@ class ReceiptTemplate(Base):
     source_keyword = Column(String, nullable=True)
     line_pattern = Column(Text, nullable=False)
     product_name_group = Column(String, default="name")
-    quantity_group = Column(String, default="qty")
+    # No default: a quantity column is optional (e.g. "name + price" receipts).
+    # A "qty" default would be applied when the seed passes None, leaving the
+    # template pointing at a regex group that doesn't exist.
+    quantity_group = Column(String, nullable=True)
     price_group = Column(String, default="price")
     line_prefix = Column(Text, nullable=True)
     line_suffix = Column(Text, nullable=True)
